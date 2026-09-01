@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 
     <style>
         body {
@@ -202,7 +203,8 @@
     </div>
 
     <script>
-        const PUBLISHED_KEY = "2PACX-1vQAeOYqR6dQsIiHpOb1FEnPK64TJaiO3p9_v0qu4bHH_ZALY0QMXsvnUsoSjyn4qW-EenW_Pss_Y6LR";
+        // رابط الـ CSV المباشر المنشور من مستندك
+        const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQAeOYqR6dQsIiHpOb1FEnPK64TJaiO3p9_v0qu4bHH_ZALY0QMXsvnUsoSjyn4qW-EenW_Pss_Y6LR/pub?output=csv";
 
         let fullData = [];
         let chartStatusInstance = null;
@@ -211,55 +213,44 @@
         function loadData() {
             document.getElementById('tableBody').innerHTML = '<tr><td colspan="7" class="text-center py-4">جاري تحميل البيانات...</td></tr>';
 
-            const oldScript = document.getElementById('gviz_script');
-            if (oldScript) oldScript.remove();
+            Papa.parse(CSV_URL, {
+                download: true,
+                header: false,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    if (!results.data || results.data.length === 0) {
+                        document.getElementById('tableBody').innerHTML = '<tr><td colspan="7" class="text-center text-warning py-4">لم يتم العثور على أي بيانات داخل الشيت المنشور.</td></tr>';
+                        return;
+                    }
 
-            const script = document.createElement('script');
-            script.id = 'gviz_script';
-            script.src = `https://docs.google.com/spreadsheets/d/e/${PUBLISHED_KEY}/gviz/tq?tqx=responseHandler:renderDashboardData`;
-            
-            script.onerror = function() {
-                document.getElementById('tableBody').innerHTML = '<tr><td colspan="7" class="text-center text-danger py-4">حدث خطأ أثناء تحميل البيانات من الشيت.</td></tr>';
-            };
+                    const rawRows = results.data;
 
-            document.body.appendChild(script);
+                    // تحويل مصفوفة الصفوف لبيانات مهيكلة
+                    fullData = rawRows.map(row => {
+                        return {
+                            'الرقم': row[0] || '',
+                            'المتطلب التنفيذي': row[1] || '',
+                            'الجهة المسؤولة': row[2] || '',
+                            'دورية المتطلب': row[3] || 'سنوي',
+                            'حالة المتطلب': row[4] || 'لم يبدأ',
+                            'تاريخ الاستحقاق': row[5] || '-',
+                            'رابط الشاهد': row[6] || ''
+                        };
+                    }).filter(item => item['المتطلب التنفيذي'] || item['الجهة المسؤولة']);
+
+                    // استبعاد صف عناوين الجدول إن وجد
+                    if (fullData.length > 0 && (fullData[0]['المتطلب التنفيذي'].includes('المتطلب') || fullData[0]['الرقم'].includes('الرقم'))) {
+                        fullData.shift();
+                    }
+
+                    populateDeptFilter();
+                    updateDashboard(fullData);
+                },
+                error: function(err) {
+                    document.getElementById('tableBody').innerHTML = '<tr><td colspan="7" class="text-center text-danger py-4">حدث خطأ أثناء تحميل البيانات من الشيت.</td></tr>';
+                }
+            });
         }
-
-        window.renderDashboardData = function(json) {
-            if (!json || !json.table || !json.table.rows || json.table.rows.length === 0) {
-                document.getElementById('tableBody').innerHTML = '<tr><td colspan="7" class="text-center text-warning py-4">لم يتم العثور على أي بيانات داخل المستند.</td></tr>';
-                return;
-            }
-
-            const rows = json.table.rows;
-
-            fullData = rows.map((row) => {
-                const cells = row.c || [];
-                const parseCell = (c) => {
-                    if (!c) return '';
-                    if (c.f) return c.f;
-                    if (c.v !== null && c.v !== undefined) return String(c.v);
-                    return '';
-                };
-
-                return {
-                    'الرقم': parseCell(cells[0]),
-                    'المتطلب التنفيذي': parseCell(cells[1]),
-                    'الجهة المسؤولة': parseCell(cells[2]),
-                    'دورية المتطلب': parseCell(cells[3]) || 'سنوي',
-                    'حالة المتطلب': parseCell(cells[4]) || 'لم يبدأ',
-                    'تاريخ الاستحقاق': parseCell(cells[5]) || '-',
-                    'رابط الشاهد': parseCell(cells[6])
-                };
-            }).filter(item => item['المتطلب التنفيذي'] || item['الجهة المسؤولة']);
-
-            if (fullData.length > 0 && (fullData[0]['المتطلب التنفيذي'].includes('المتطلب') || fullData[0]['الرقم'].includes('الرقم'))) {
-                fullData.shift();
-            }
-
-            populateDeptFilter();
-            updateDashboard(fullData);
-        };
 
         function populateDeptFilter() {
             const depts = [...new Set(fullData.map(r => String(r['الجهة المسؤولة']).trim()))].filter(Boolean);
@@ -319,84 +310,4 @@
             }
         }
 
-        function renderTable(data) {
-            const tbody = document.getElementById('tableBody');
-            tbody.innerHTML = '';
-
-            if (data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted">لا توجد بيانات مطابقة للبحث</td></tr>';
-                return;
-            }
-
-            data.forEach(row => {
-                const linkVal = String(row['رابط الشاهد'] || '');
-                const link = linkVal.startsWith('http') 
-                    ? `<a href="${linkVal}" target="_blank" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-link"></i></a>` 
-                    : '-';
-
-                tbody.innerHTML += `
-                    <tr>
-                        <td><strong>${row['الرقم'] || ''}</strong></td>
-                        <td>${row['المتطلب التنفيذي'] || ''}</td>
-                        <td><span class="badge bg-light text-dark border">${row['الجهة المسؤولة'] || ''}</span></td>
-                        <td><small>${row['دورية المتطلب'] || 'سنوي'}</small></td>
-                        <td>${getStatusBadge(row['حالة المتطلب'])}</td>
-                        <td><small>${row['تاريخ الاستحقاق'] || '-'}</small></td>
-                        <td>${link}</td>
-                    </tr>
-                `;
-            });
-        }
-
-        function renderCharts(data, statusCounts) {
-            const ctxStatus = document.getElementById('chartStatus').getContext('2d');
-            if (chartStatusInstance) chartStatusInstance.destroy();
-            chartStatusInstance = new Chart(ctxStatus, {
-                type: 'doughnut',
-                data: {
-                    labels: ['مكتمل', 'جاري التنفيذ', 'لم يبدأ', 'متأخر', 'لا ينطبق'],
-                    datasets: [{
-                        data: [statusCounts.completed, statusCounts.progress, statusCounts.notstarted, statusCounts.delayed, statusCounts.na],
-                        backgroundColor: ['#198754', '#0dcaf0', '#6c757d', '#dc3545', '#ffc107']
-                    }]
-                },
-                options: { responsive: true, maintainAspectRatio: false }
-            });
-
-            const deptMap = {};
-            data.forEach(r => {
-                const dept = String(r['الجهة المسؤولة'] || '').trim();
-                if (dept) {
-                    if (!deptMap[dept]) deptMap[dept] = { total: 0, completed: 0 };
-                    deptMap[dept].total++;
-                    if (String(r['حالة المتطلب']||'').trim() === 'مكتمل') deptMap[dept].completed++;
-                }
-            });
-
-            const deptLabels = Object.keys(deptMap);
-            const deptTotals = deptLabels.map(d => deptMap[d].total);
-            const deptCompleted = deptLabels.map(d => deptMap[d].completed);
-
-            const ctxDept = document.getElementById('chartDept').getContext('2d');
-            if (chartDeptInstance) chartDeptInstance.destroy();
-            chartDeptInstance = new Chart(ctxDept, {
-                type: 'bar',
-                data: {
-                    labels: deptLabels,
-                    datasets: [
-                        { label: 'إجمالي المتطلبات', data: deptTotals, backgroundColor: '#0d6efd' },
-                        { label: 'المكتملة', data: deptCompleted, backgroundColor: '#198754' }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: { y: { beginAtZero: true } }
-                }
-            });
-        }
-
-        window.onload = loadData;
-    </script>
-</body>
-</html>
+        function
