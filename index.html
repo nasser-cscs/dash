@@ -4,67 +4,118 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>لوحة متابعة الحوكمة والجاهزية السنوية</title>
+
+    <!-- Bootstrap 5 Arabic RTL -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
+    <!-- Google Font (Cairo) -->
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Chart.js for Visualizations -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- PapaParse for Reading Google Sheets CSV -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+
     <style>
-        body { font-family: 'Cairo', sans-serif; background-color: #f4f6f9; padding: 20px; }
-        .card-kpi { border-radius: 12px; border: none; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        .kpi-title { font-size: 0.9rem; color: #6c757d; font-weight: 600; }
-        .kpi-value { font-size: 1.8rem; font-weight: 700; color: #1e293b; }
-        .table-container { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        body {
+            font-family: 'Cairo', sans-serif;
+            background-color: #f8f9fa;
+            color: #333;
+            padding: 20px;
+        }
+        .dashboard-header {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.04);
+            margin-bottom: 25px;
+        }
+        .card-kpi {
+            border-radius: 12px;
+            border: none;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.04);
+            background: #ffffff;
+            transition: transform 0.2s;
+        }
+        .card-kpi:hover {
+            transform: translateY(-3px);
+        }
+        .kpi-title {
+            font-size: 0.85rem;
+            color: #6c757d;
+            font-weight: 600;
+        }
+        .kpi-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-top: 5px;
+        }
+        .main-container {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.04);
+        }
+        .table-responsive {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        .badge-status {
+            font-size: 0.85rem;
+            padding: 6px 12px;
+            border-radius: 20px;
+        }
     </style>
 </head>
 <body>
 
 <div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    
+    <!-- Header Section -->
+    <div class="dashboard-header d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
         <div>
-            <h2 class="fw-bold text-primary mb-1">📊 لوحة متابعة الحوكمة والجاهزية السنوية</h2>
-            <p class="text-muted mb-0">مربوطة تلقائيًا بـ Google Sheets (تُهمل صفحة التعليمات كليًا)</p>
+            <h3 class="fw-bold text-primary mb-1">📊 داش بورد لوحة متابعة الحوكمة والجاهزية السنوية</h3>
+            <p class="text-muted mb-0">مربوط فورياً بملف Google Sheets (مع إهمال صفحة التعليمات كلياً)</p>
         </div>
-        <div class="w-25">
-            <label class="fw-bold mb-1">اختر الإدارة / الوحدة:</label>
-            <select id="deptSelect" class="form-select border-primary" onchange="filterData()">
-                <option value="ALL">📋 كافة الإدارات (اللوحة العامة)</option>
+        <div class="d-flex align-items-center gap-2">
+            <label class="fw-bold text-nowrap mb-0">اختر الجهة / الإدارة:</label>
+            <select id="deptSelect" class="form-select border-primary fw-bold" onchange="filterData()">
+                <option value="ALL">📋 كافة الإدارات والوحدات (اللوحة العامة)</option>
             </select>
         </div>
     </div>
 
-    <!-- KPIs -->
+    <!-- KPIs Cards Section -->
     <div class="row g-3 mb-4">
-        <div class="col-md-2">
+        <div class="col-6 col-md-2">
             <div class="card card-kpi p-3 text-center border-start border-primary border-4">
                 <div class="kpi-title">إجمالي المتطلبات</div>
-                <div class="kpi-value" id="kpiTotal">0</div>
+                <div class="kpi-value text-primary" id="kpiTotal">0</div>
             </div>
         </div>
-        <div class="col-md-2">
+        <div class="col-6 col-md-2">
             <div class="card card-kpi p-3 text-center border-start border-success border-4">
                 <div class="kpi-title">مكتملة ✅</div>
                 <div class="kpi-value text-success" id="kpiCompleted">0</div>
             </div>
         </div>
-        <div class="col-md-2">
+        <div class="col-6 col-md-2">
             <div class="card card-kpi p-3 text-center border-start border-warning border-4">
                 <div class="kpi-title">جاري التنفيذ ⏳</div>
                 <div class="kpi-value text-warning" id="kpiInProgress">0</div>
             </div>
         </div>
-        <div class="col-md-2">
+        <div class="col-6 col-md-2">
             <div class="card card-kpi p-3 text-center border-start border-danger border-4">
                 <div class="kpi-title">لم يبدأ 🔴</div>
                 <div class="kpi-value text-danger" id="kpiNotStarted">0</div>
             </div>
         </div>
-        <div class="col-md-2">
+        <div class="col-6 col-md-2">
             <div class="card card-kpi p-3 text-center border-start border-secondary border-4">
                 <div class="kpi-title">متأخر / لا ينطبق</div>
                 <div class="kpi-value text-secondary" id="kpiOther">0</div>
             </div>
         </div>
-        <div class="col-md-2">
+        <div class="col-6 col-md-2">
             <div class="card card-kpi p-3 text-center bg-primary text-white">
                 <div class="kpi-title text-white-50">نسبة الإنجاز</div>
                 <div class="kpi-value text-white" id="kpiRate">0%</div>
@@ -72,94 +123,146 @@
         </div>
     </div>
 
-    <!-- Chart -->
-    <div class="card card-kpi p-3 mb-4">
-        <h5 class="fw-bold mb-3">📌 رسم بياني لحالة المتطلبات</h5>
-        <canvas id="statusChart" height="80"></canvas>
+    <!-- Chart & Analytics Section -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-8">
+            <div class="main-container h-100">
+                <h5 class="fw-bold mb-3">📌 تحليلات حالات المتطلبات الإجمالية</h5>
+                <canvas id="barChart" height="120"></canvas>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="main-container h-100">
+                <h5 class="fw-bold mb-3">🎯 توزيع الإنجاز</h5>
+                <canvas id="pieChart" height="200"></canvas>
+            </div>
+        </div>
     </div>
 
-    <!-- Table -->
-    <div class="table-container">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="fw-bold mb-0">📋 جدول البيانات والتحديثات التفصيلية</h5>
-            <input type="text" id="searchInput" class="form-select w-25" placeholder="🔍 بحث في المتطلبات..." onkeyup="filterData()">
+    <!-- Data Table Section -->
+    <div class="main-container">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-3">
+            <h5 class="fw-bold mb-0">📋 جدول بيانات المتطلبات الشاملة</h5>
+            <div class="d-flex gap-2 w-md-50">
+                <input type="text" id="searchInput" class="form-control" placeholder="🔍 بحث بالنص أو الشاهد..." onkeyup="filterData()">
+                <select id="statusFilter" class="form-select w-50" onchange="filterData()">
+                    <option value="ALL">جميع الحالات</option>
+                    <option value="لم يبدأ">لم يبدأ</option>
+                    <option value="جاري التنفيذ">جاري التنفيذ</option>
+                    <option value="مكتمل">مكتمل</option>
+                    <option value="متأخر">متأخر</option>
+                    <option value="لا ينطبق">لا ينطبق</option>
+                </select>
+            </div>
         </div>
+
         <div class="table-responsive">
             <table class="table table-hover align-middle">
-                <thead class="table-light">
+                <thead class="table-light sticky-top">
                     <tr>
-                        <th>الرقم</th>
-                        <th>المتطلب التنفيذي</th>
-                        <th>الشاهد / الأدلة المطلوبة</th>
-                        <th>الجهة المسؤولة</th>
-                        <th>حالة المتطلب</th>
-                        <th>رابط الشاهد</th>
+                        <th style="width: 5%;">#</th>
+                        <th style="width: 35%;">المتطلب التنفيذي</th>
+                        <th style="width: 25%;">الشاهد / الأدلة المطلوبة</th>
+                        <th style="width: 15%;">الجهة المسؤولة</th>
+                        <th style="width: 10%;">حالة المتطلب</th>
+                        <th style="width: 10%;">رابط الشاهد</th>
                     </tr>
                 </thead>
-                <tbody id="tableBody"></tbody>
+                <tbody id="tableBody">
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">جاري تحميل البيانات من Google Sheets...</td>
+                    </tr>
+                </tbody>
             </table>
         </div>
     </div>
+
 </div>
 
 <script>
-    // ضعي رابط CSV المصدر من Google Sheets هنا (تأكدي أنه يشير لصفحة المتطلبات الرئيسية عبر gid)
-    const googleSheetCsvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ.../pub?gid=YOUR_GID&single=true&output=csv";
-    
-    let rawData = [];
-    let myChart = null;
+    // -------------------------------------------------------------------------
+    // رابط جوجل شيت المباشر (تأكد من استبدال GID ورابط الشيت الخاص بك)
+    // -------------------------------------------------------------------------
+    const googleSheetCsvUrl = "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID_HERE/export?format=csv&gid=YOUR_GID_HERE";
 
-    async function fetchData() {
-        // جلب البيانات مع تجاهل صفحة التعليمات تلقائياً
+    let rawData = [];
+    let barChartInstance = null;
+    let pieChartInstance = null;
+
+    async function initDashboard() {
         Papa.parse(googleSheetCsvUrl, {
             download: true,
             header: true,
+            skipEmptyLines: true,
             complete: function(results) {
-                // تصفية صفحة التعليمات والصفوف الفارغة
-                rawData = results.data.filter(row => row['الجهة المسؤولة'] && row['الجهة المسؤولة'].trim() !== "" && !row['الجهة المسؤولة'].includes("تعليمات"));
-                populateDeptDropdown();
+                // تصفية البيانات لإهمال صفحة التعليمات كلياً واعتماد البيانات الحقيقية
+                rawData = results.data.filter(row => {
+                    const dept = row['الجهة المسؤولة'] ? row['الجهة المسؤولة'].trim() : '';
+                    return dept !== '' && !dept.includes('تعليمات') && !dept.includes('مصدر البيانات');
+                });
+
+                populateDepartments();
                 filterData();
+            },
+            error: function(err) {
+                document.getElementById('tableBody').innerHTML = `
+                    <tr><td colspan="6" class="text-center text-danger py-4">⚠️ فشل التحميل. يرجى التأكد من نشر ملف Google Sheets للعموم (Public).</td></tr>
+                `;
             }
         });
     }
 
-    function populateDeptDropdown() {
-        const depts = [...new Set(rawData.map(item => item['الجهة المسؤولة']))].sort();
-        const select = document.getElementById('deptSelect');
-        depts.forEach(dept => {
+    function populateDepartments() {
+        const departments = [...new Set(rawData.map(item => item['الجهة المسؤولة'].trim()))].sort();
+        const deptSelect = document.getElementById('deptSelect');
+        
+        departments.forEach(dept => {
             const opt = document.createElement('option');
             opt.value = dept;
             opt.textContent = dept;
-            select.appendChild(opt);
+            deptSelect.appendChild(opt);
         });
     }
 
     function filterData() {
         const selectedDept = document.getElementById('deptSelect').value;
-        const searchText = document.getElementById('searchInput').value.toLowerCase();
+        const selectedStatus = document.getElementById('statusFilter').value;
+        const searchText = document.getElementById('searchInput').value.toLowerCase().trim();
 
         let filtered = rawData;
+
+        // تصفية الإدارة/الوحدة
         if (selectedDept !== 'ALL') {
-            filtered = filtered.filter(item => item['الجهة المسؤولة'] === selectedDept);
+            filtered = filtered.filter(item => item['الجهة المسؤولة'].trim() === selectedDept);
         }
 
+        // تصفية الحالة
+        if (selectedStatus !== 'ALL') {
+            filtered = filtered.filter(item => (item['حالة المتطلب'] || 'لم يبدأ').trim() === selectedStatus);
+        }
+
+        // تصفية البحث النصي
         if (searchText) {
             filtered = filtered.filter(item => 
                 (item['المتطلب التنفيذي'] && item['المتطلب التنفيذي'].toLowerCase().includes(searchText)) ||
-                (item['الشاهد/الأدلة المطلوبة'] && item['الشاهد/الأدلة المطلوبة'].toLowerCase().includes(searchText))
+                (item['الشاهد/الأدلة المطلوبة'] && item['الشاهد/الأدلة المطلوبة'].toLowerCase().includes(searchText)) ||
+                (item['الرقم'] && item['الرقم'].toString().includes(searchText))
             );
         }
 
-        updateDashboard(filtered);
+        renderDashboard(filtered);
     }
 
-    function updateDashboard(data) {
+    function renderDashboard(data) {
+        // حساب المؤشرات KPIs
         const total = data.length;
-        const completed = data.filter(d => d['حالة المتطلب'] === 'مكتمل').length;
-        const inProgress = data.filter(d => d['حالة المتطلب'] === 'جاري التنفيذ').length;
-        const notStarted = data.filter(d => d['حالة المتطلب'] === 'لم يبدأ').length;
+        const completed = data.filter(d => (d['حالة المتطلب'] || '').trim() === 'مكتمل').length;
+        const inProgress = data.filter(d => (d['حالة المتطلب'] || '').trim() === 'جاري التنفيذ').length;
+        const notStarted = data.filter(d => (d['حالة المتطلب'] || '').trim() === 'لم يبدأ' || !d['حالة المتطلب']).length;
         const other = total - (completed + inProgress + notStarted);
-        const rate = total > 0 ? ((completed / total) * 100).toFixed(1) : 0;
+
+        const applicableTotal = total - data.filter(d => (d['حالة المتطلب'] || '').trim() === 'لا ينطبق').length;
+        const rate = applicableTotal > 0 ? ((completed / applicableTotal) * 100).toFixed(1) : 0;
 
         document.getElementById('kpiTotal').innerText = total;
         document.getElementById('kpiCompleted').innerText = completed;
@@ -168,50 +271,87 @@
         document.getElementById('kpiOther').innerText = other;
         document.getElementById('kpiRate').innerText = rate + '%';
 
-        // Render Table
+        // ملء جدول البيانات
         const tbody = document.getElementById('tableBody');
         tbody.innerHTML = '';
-        data.forEach(row => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>${row['الرقم'] || ''}</td>
-                <td>${row['المتطلب التنفيذي'] || ''}</td>
-                <td>${row['الشاهد/الأدلة المطلوبة'] || ''}</td>
-                <td><span class="badge bg-secondary">${row['الجهة المسؤولة'] || ''}</span></td>
-                <td><span class="badge ${getStatusBadge(row['حالة المتطلب'])}">${row['حالة المتطلب'] || 'لم يبدأ'}</span></td>
-                <td>${row['رابط الشاهد'] ? `<a href="${row['رابط الشاهد']}" target="_blank">رابط</a>` : '-'}</td>
-            `;
-            tbody.appendChild(tr);
-        });
 
-        renderChart(completed, inProgress, notStarted, other);
+        if (data.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-4">لا توجد متطلبات مطابقة للفلتر المحدد.</td></tr>`;
+        } else {
+            data.forEach(row => {
+                const tr = document.createElement('tr');
+                const status = (row['حالة المتطلب'] || 'لم يبدأ').trim();
+                const link = row['رابط الشاهد'] && row['رابط الشاهد'].startsWith('http') 
+                    ? `<a href="${row['رابط الشاهد']}" target="_blank" class="btn btn-sm btn-outline-primary">عرض</a>` 
+                    : '-';
+
+                tr.innerHTML = `
+                    <td class="fw-bold">${row['الرقم'] || '-'}</td>
+                    <td>${row['المتطلب التنفيذي'] || ''}</td>
+                    <td class="text-muted small">${row['الشاهد/الأدلة المطلوبة'] || ''}</td>
+                    <td><span class="badge bg-light text-dark border">${row['الجهة المسؤولة'] || ''}</span></td>
+                    <td><span class="badge ${getStatusBadge(status)} badge-status">${status}</span></td>
+                    <td>${link}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // تحديث الرسوم البيانية
+        renderCharts(completed, inProgress, notStarted, other);
     }
 
     function getStatusBadge(status) {
-        if (status === 'مكتمل') return 'bg-success';
-        if (status === 'جاري التنفيذ') return 'bg-warning text-dark';
-        if (status === 'لم يبدأ') return 'bg-danger';
-        return 'bg-secondary';
+        switch(status) {
+            case 'مكتمل': return 'bg-success';
+            case 'جاري التنفيذ': return 'bg-warning text-dark';
+            case 'لم يبدأ': return 'bg-danger';
+            case 'متأخر': return 'bg-dark';
+            default: return 'bg-secondary';
+        }
     }
 
-    function renderChart(c, i, n, o) {
-        const ctx = document.getElementById('statusChart').getContext('2d');
-        if (myChart) myChart.destroy();
-        myChart = new Chart(ctx, {
+    function renderCharts(c, i, n, o) {
+        // Bar Chart
+        const ctxBar = document.getElementById('barChart').getContext('2d');
+        if (barChartInstance) barChartInstance.destroy();
+        barChartInstance = new Chart(ctxBar, {
             type: 'bar',
             data: {
                 labels: ['مكتمل ✅', 'جاري التنفيذ ⏳', 'لم يبدأ 🔴', 'أخرى / متأخر'],
                 datasets: [{
                     label: 'عدد المتطلبات',
                     data: [c, i, n, o],
+                    backgroundColor: ['#198754', '#ffc107', '#dc3545', '#6c757d'],
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { display: false } }
+            }
+        });
+
+        // Pie Chart
+        const ctxPie = document.getElementById('pieChart').getContext('2d');
+        if (pieChartInstance) pieChartInstance.destroy();
+        pieChartInstance = new Chart(ctxPie, {
+            type: 'doughnut',
+            data: {
+                labels: ['مكتمل', 'جاري التنفيذ', 'لم يبدأ', 'أخرى'],
+                datasets: [{
+                    data: [c, i, n, o],
                     backgroundColor: ['#198754', '#ffc107', '#dc3545', '#6c757d']
                 }]
             },
-            options: { responsive: true, plugins: { legend: { display: false } } }
+            options: {
+                responsive: true,
+                plugins: { legend: { position: 'bottom' } }
+            }
         });
     }
 
-    window.onload = fetchData;
+    window.onload = initDashboard;
 </script>
 
 </body>
