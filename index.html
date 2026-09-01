@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة متابعة متطلبات الجاهزية السنوية للحوكمة</title>
+    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        body {
+            font-family: 'Cairo', sans-serif;
+            background-color: #f4f6f9;
+            color: #333;
+        }
+        .navbar {
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+        }
+        .card-kpi {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            transition: transform 0.2s;
+        }
+        .card-kpi:hover {
+            transform: translateY(-3px);
+        }
+        .kpi-icon {
+            font-size: 2.2rem;
+            opacity: 0.8;
+        }
+        .bg-status-completed { background-color: #d1e7dd; color: #0f5132; }
+        .bg-status-progress { background-color: #cff4fc; color: #055160; }
+        .bg-status-notstarted { background-color: #e2e3e5; color: #41464b; }
+        .bg-status-delayed { background-color: #f8d7da; color: #842029; }
+        .bg-status-na { background-color: #fff3cd; color: #664d03; }
+
+        .table-responsive {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        .badge-status {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar navbar-dark mb-4 shadow">
+        <div class="container-fluid px-4">
+            <span class="navbar-brand mb-0 h1">
+                <i class="fa-solid fa-chart-line me-2"></i>
+                لوحة متابعة متطلبات الجاهزية السنوية للحوكمة
+            </span>
+            <button class="btn btn-outline-light btn-sm" onclick="loadData()">
+                <i class="fa-solid fa-rotate me-1"></i> تحديث البيانات
+            </button>
+        </div>
+    </nav>
+
+    <div class="container-fluid px-4">
+        
+        <div class="row g-3 mb-4">
+            <div class="col-md-2">
+                <div class="card card-kpi p-3 bg-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <small class="text-muted fw-bold">إجمالي المتطلبات</small>
+                            <h3 class="mb-0 fw-bold text-primary" id="kpi-total">0</h3>
+                        </div>
+                        <i class="fa-solid fa-list-check kpi-icon text-primary"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card card-kpi p-3 bg-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <small class="text-muted fw-bold">مكتملة</small>
+                            <h3 class="mb-0 fw-bold text-success" id="kpi-completed">0</h3>
+                        </div>
+                        <i class="fa-solid fa-circle-check kpi-icon text-success"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card card-kpi p-3 bg-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <small class="text-muted fw-bold">جاري التنفيذ</small>
+                            <h3 class="mb-0 fw-bold text-info" id="kpi-progress">0</h3>
+                        </div>
+                        <i class="fa-solid fa-spinner kpi-icon text-info"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card card-kpi p-3 bg-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <small class="text-muted fw-bold">لم يبدأ</small>
+                            <h3 class="mb-0 fw-bold text-secondary" id="kpi-notstarted">0</h3>
+                        </div>
+                        <i class="fa-solid fa-clock kpi-icon text-secondary"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card card-kpi p-3 bg-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <small class="text-muted fw-bold">متأخرة</small>
+                            <h3 class="mb-0 fw-bold text-danger" id="kpi-delayed">0</h3>
+                        </div>
+                        <i class="fa-solid fa-triangle-exclamation kpi-icon text-danger"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card card-kpi p-3 bg-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <small class="text-muted fw-bold">نسبة الإنجاز</small>
+                            <h3 class="mb-0 fw-bold text-dark" id="kpi-rate">0%</h3>
+                        </div>
+                        <i class="fa-solid fa-chart-pie kpi-icon text-dark"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-3 mb-4">
+            <div class="col-md-8">
+                <div class="card p-3 shadow-sm border-0 h-100">
+                    <h6 class="fw-bold mb-3"><i class="fa-solid fa-building me-2 text-primary"></i>نسبة الإنجاز وعدد المتطلبات حسب الجهة المسؤولة</h6>
+                    <div style="position: relative; height: 280px;">
+                        <canvas id="chartDept"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card p-3 shadow-sm border-0 h-100">
+                    <h6 class="fw-bold mb-3"><i class="fa-solid fa-chart-pie me-2 text-primary"></i>توزيع حالات المتطلبات</h6>
+                    <div style="position: relative; height: 280px;" class="d-flex justify-content-center">
+                        <canvas id="chartStatus"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-responsive mb-5">
+            <div class="row g-2 mb-3 align-items-center">
+                <div class="col-md-4">
+                    <input type="text" id="searchInput" class="form-control" placeholder="🔍 بحث في المتطلبات..." oninput="filterData()">
+                </div>
+                <div class="col-md-3">
+                    <select id="filterDept" class="form-select" onchange="filterData()">
+                        <option value="">جميع الجهات المسؤولة</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select id="filterStatus" class="form-select" onchange="filterData()">
+                        <option value="">جميع الحالات</option>
+                        <option value="لم يبدأ">لم يبدأ</option>
+                        <option value="جاري التنفيذ">جاري التنفيذ</option>
+                        <option value="مكتمل">مكتمل</option>
+                        <option value="متأخر">متأخر</option>
+                        <option value="لا ينطبق">لا ينطبق</option>
+                    </select>
+                </div>
+                <div class="col-md-2 text-end">
+                    <span id="rowCount" class="text-muted fw-bold">العدد: 0</span>
+                </div>
+            </div>
+
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>الرقم</th>
+                        <th style="width: 35%;">المتطلب التنفيذي</th>
+                        <th>الجهة المسؤولة</th>
+                        <th>دورية المتطلب</th>
+                        <th>حالة المتطلب</th>
+                        <th>تاريخ الاستحقاق</th>
+                        <th>الشاهد/الأدلة</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <tr><td colspan="7" class="text-center py-4">جاري تحميل البيانات...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+
+    <script>
+        const PUBLISHED_KEY = "2PACX-1vQAeOYqR6dQsIiHpOb1FEnPK64TJaiO3p9_v0qu4bHH_ZALY0QMXsvnUsoSjyn4qW-EenW_Pss_Y6LR";
+
+        let fullData = [];
+        let chartStatusInstance = null;
+        let chartDeptInstance = null;
+
+        function loadData() {
+            document.getElementById('tableBody').innerHTML = '<tr><td colspan="7" class="text-center py-4">جاري تحميل البيانات...</td></tr>';
+
+            // حذف أي سكريبت سابق تجنباً للتعارض
+            const oldScript = document.getElementById('gviz_script');
+            if (oldScript) oldScript.remove();
+
+            // إنشاء استدعاء Dynamic Script Tag لضمان تجاوز حظر CORS
+            const script = document.createElement('script');
+            script.id = 'gviz_script';
+            script.src = `https://docs.google.com/spreadsheets/d/e/${PUBLISHED_KEY}/gviz/tq?tqx=responseHandler:renderDashboardData`;
+            
+            script.onerror = function() {
+                document.getElementById('tableBody').innerHTML = `
+                    <tr>
+                        <td colspan="7" class="text-center text-danger py-4">
+                            <strong>حدث خطأ في الاتصال بالبيانات!</strong><br>
+                            يرجى التأكد من تشغيل الملف عبر خادم محلي (مثل Live Server في VS Code) أو رفعه على استضافة.
+                        </td>
+                    </tr>`;
+            };
+
+            document.body.appendChild(script);
+        }
+
+        // الاستجابة من جوجل
+        window.renderDashboardData = function(json) {
+            if (!json || !json.table || !json.table.rows || json.table.rows.length === 0) {
+                document.getElementById('tableBody').innerHTML = '<tr><td colspan="7" class="text-center text-warning py-4">لم يتم العثور على أي بيانات داخل الشيت المنشور.</td></tr>';
+                return;
+            }
+
+            const rows = json.table.rows;
+
+            fullData = rows.map((row) => {
+                const cells = row.c || [];
+                const parseCell = (c) => {
+                    if (!c) return '';
+                    if (c.f) return c.f;
+                    if (c.v !== null && c.v !== undefined) return String(c.v);
+                    return '';
+                };
+
+                return {
+                    'الرقم': parseCell(cells[0]),
+                    'المتطلب التنفيذي': parseCell(cells[1]),
+                    'الجهة المسؤولة': parseCell(cells[2]),
+                    'دورية المتطلب': parseCell(cells[3]) || 'سنوي',
+                    'حالة المتطلب': parseCell(cells[4]) || 'لم يبدأ',
+                    'تاريخ الاستحقاق': parseCell(cells[5]) || '-',
+                    'رابط الشاهد': parseCell(cells[6])
+                };
+            }).filter(item => item['المتطلب التنفيذي'] || item['الجهة المسؤولة']);
+
+            // حذف صف العناوين إن وجد
+            if (fullData.length > 0 && (fullData[0]['المتطلب التنفيذي'].includes('المتطلب') || fullData[0]['الرقم'].includes('الرقم'))) {
+                fullData.shift();
+            }
+
+            populateDeptFilter();
+            updateDashboard(fullData);
+        };
+
+        function populateDeptFilter() {
+            const depts = [...new Set(fullData.map(r => String(r['الجهة المسؤولة']).trim()))].filter(Boolean);
+            const select = document.getElementById('filterDept');
+            select.innerHTML = '<option value="">جميع الجهات المسؤولة</option>';
+            depts.forEach(d => {
+                select.innerHTML += `<option value="${d}">${d}</option>`;
+            });
+        }
+
+        function filterData() {
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const dept = document.getElementById('filterDept').value;
+            const status = document.getElementById('filterStatus').value;
+
+            const filtered = fullData.filter(row => {
+                const matchSearch = String(row['المتطلب التنفيذي'] || '').toLowerCase().includes(search) || 
+                                    String(row['الجهة المسؤولة'] || '').toLowerCase().includes(search);
+                const matchDept = !dept || String(row['الجهة المسؤولة']).trim() === dept;
+                const matchStatus = !status || String(row['حالة المتطلب'] || '').trim() === status;
+                return matchSearch && matchDept && matchStatus;
+            });
+
+            updateDashboard(filtered);
+        }
+
+        function updateDashboard(data) {
+            const total = data.length;
+            const completed = data.filter(r => String(r['حالة المتطلب']||'').trim() === 'مكتمل').length;
+            const progress = data.filter(r => String(r['حالة المتطلب']||'').trim() === 'جاري التنفيذ').length;
+            const notstarted = data.filter(r => String(r['حالة المتطلب']||'').trim() === 'لم يبدأ').length;
+            const delayed = data.filter(r => String(r['حالة المتطلب']||'').trim() === 'متأخر').length;
+            const na = data.filter(r => String(r['حالة المتطلب']||'').trim() === 'لا ينطبق').length;
+
+            const rate = total > 0 ? Math.round((completed / (total - na || 1)) * 100) : 0;
+
+            document.getElementById('kpi-total').innerText = total;
+            document.getElementById('kpi-completed').innerText = completed;
+            document.getElementById('kpi-progress').innerText = progress;
+            document.getElementById('kpi-notstarted').innerText = notstarted;
+            document.getElementById('kpi-delayed').innerText = delayed;
+            document.getElementById('kpi-rate').innerText = rate + '%';
+            document.getElementById('rowCount').innerText = `العدد: ${total}`;
+
+            renderTable(data);
+            renderCharts(data, { completed, progress, notstarted, delayed, na });
+        }
+
+        function getStatusBadge(status) {
+            status = String(status || 'لم يبدأ').trim();
+            switch(status) {
+                case 'مكتمل': return '<span class="badge badge-status bg-status-completed"><i class="fa-solid fa-check me-1"></i> مكتمل</span>';
+                case 'جاري التنفيذ': return '<span class="badge badge-status bg-status-progress"><i class="fa-solid fa-spinner me-1"></i> جاري التنفيذ</span>';
+                case 'متأخر': return '<span class="badge badge-status bg-status-delayed"><i class="fa-solid fa-exclamation me-1"></i> متأخر</span>';
+                case 'لا ينطبق': return '<span class="badge badge-status bg-status-na"><i class="fa-solid fa-minus me-1"></i> لا ينطبق</span>';
+                default: return '<span class="badge badge-status bg-status-notstarted"><i class="fa-solid fa-clock me-1"></i> لم يبدأ</span>';
+            }
+        }
+
+        function renderTable(data) {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted">لا توجد بيانات مطابقة للبحث</td></tr>';
+                return;
+            }
+
+            data.forEach(row => {
+                const linkVal = String(row['رابط الشاهد'] || '');
+                const link = linkVal.startsWith('http') 
+                    ? `<a href="${linkVal}" target="_blank" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-link"></i></a>` 
+                    : '-';
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td><strong>${row['الرقم'] || ''}</strong></td>
+                        <td>${row['المتطلب التنفيذي'] || ''}</td>
+                        <td><span class="badge bg-light text-dark border">${row['الجهة المسؤولة'] || ''}</span></td>
+                        <td><small>${row['دورية المتطلب'] || 'سنوي'}</small></td>
+                        <td>${getStatusBadge(row['حالة المتطلب'])}</td>
+                        <td><small>${row['تاريخ الاستحقاق'] || '-'}</small></td>
+                        <td>${link}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        function renderCharts(data, statusCounts) {
+            const ctxStatus = document.getElementById('chartStatus').getContext('2d');
+            if (chartStatusInstance) chartStatusInstance.destroy();
+            chartStatusInstance = new Chart(ctxStatus, {
+                type: 'doughnut',
+                data: {
+                    labels: ['مكتمل', 'جاري التنفيذ', 'لم يبدأ', 'متأخر', 'لا ينطبق'],
+                    datasets: [{
+                        data: [statusCounts.completed, statusCounts.progress, statusCounts.notstarted, statusCounts.delayed, statusCounts.na],
+                        backgroundColor: ['#198754', '#0dcaf0', '#6c757d', '#dc3545', '#ffc107']
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+
+            const deptMap = {};
+            data.forEach(r => {
+                const dept = String(r['الجهة المسؤولة'] || '').trim();
+                if (dept) {
+                    if (!deptMap[dept]) deptMap[dept] = { total: 0, completed: 0 };
+                    deptMap[dept].total++;
+                    if (String(r['حالة المتطلب']||'').trim() === 'مكتمل') deptMap[dept].completed++;
+                }
+            });
+
+            const deptLabels = Object.keys(deptMap);
+            const deptTotals = deptLabels.map(d => deptMap[d].total);
+            const deptCompleted = deptLabels.map(d => deptMap[d].completed);
+
+            const ctxDept = document.getElementById('chartDept').getContext('2d');
+            if (chartDeptInstance) chartDeptInstance.destroy();
+            chartDeptInstance = new Chart(ctxDept, {
+                type: 'bar',
+                data: {
+                    labels: deptLabels,
+                    datasets: [
+                        { label: 'إجمالي المتطلبات', data: deptTotals, backgroundColor: '#0d6efd' },
+                        { label: 'المكتملة', data: deptCompleted, backgroundColor: '#198754' }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+        }
+
+        window.onload = loadData;
+    </script>
+</body>
+</html>
