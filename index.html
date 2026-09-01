@@ -203,8 +203,9 @@
     </div>
 
     <script>
-        // رابط الـ CSV المباشر المنشور من مستندك
-        const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQAeOYqR6dQsIiHpOb1FEnPK64TJaiO3p9_v0qu4bHH_ZALY0QMXsvnUsoSjyn4qW-EenW_Pss_Y6LR/pub?output=csv";
+        // رابط المستند المنشور مع استخدام بروكسي لتخطي قيود الأمان في المتصفحات
+        const BASE_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQAeOYqR6dQsIiHpOb1FEnPK64TJaiO3p9_v0qu4bHH_ZALY0QMXsvnUsoSjyn4qW-EenW_Pss_Y6LR/pub?output=csv";
+        const PROXY_URL = "https://corsproxy.io/?" + encodeURIComponent(BASE_CSV);
 
         let fullData = [];
         let chartStatusInstance = null;
@@ -213,7 +214,7 @@
         function loadData() {
             document.getElementById('tableBody').innerHTML = '<tr><td colspan="7" class="text-center py-4">جاري تحميل البيانات...</td></tr>';
 
-            Papa.parse(CSV_URL, {
+            Papa.parse(PROXY_URL, {
                 download: true,
                 header: false,
                 skipEmptyLines: true,
@@ -225,7 +226,6 @@
 
                     const rawRows = results.data;
 
-                    // تحويل مصفوفة الصفوف لبيانات مهيكلة
                     fullData = rawRows.map(row => {
                         return {
                             'الرقم': row[0] || '',
@@ -238,7 +238,6 @@
                         };
                     }).filter(item => item['المتطلب التنفيذي'] || item['الجهة المسؤولة']);
 
-                    // استبعاد صف عناوين الجدول إن وجد
                     if (fullData.length > 0 && (fullData[0]['المتطلب التنفيذي'].includes('المتطلب') || fullData[0]['الرقم'].includes('الرقم'))) {
                         fullData.shift();
                     }
@@ -247,7 +246,7 @@
                     updateDashboard(fullData);
                 },
                 error: function(err) {
-                    document.getElementById('tableBody').innerHTML = '<tr><td colspan="7" class="text-center text-danger py-4">حدث خطأ أثناء تحميل البيانات من الشيت.</td></tr>';
+                    document.getElementById('tableBody').innerHTML = '<tr><td colspan="7" class="text-center text-danger py-4">تعذر تحميل البيانات، يرجى التأكد من النشر على الويب بشكل صحيح.</td></tr>';
                 }
             });
         }
@@ -310,4 +309,21 @@
             }
         }
 
-        function
+        function renderTable(data) {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted">لا توجد بيانات مطابقة للبحث</td></tr>';
+                return;
+            }
+
+            data.forEach(row => {
+                const linkVal = String(row['رابط الشاهد'] || '');
+                const link = linkVal.startsWith('http') 
+                    ? `<a href="${linkVal}" target="_blank" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-link"></i></a>` 
+                    : '-';
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td><strong>${row['الرقم'] || ''}</strong></td>
