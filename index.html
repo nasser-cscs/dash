@@ -5,13 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>لوحة متابعة الحوكمة والجاهزية السنوية</title>
 
-    <!-- Bootstrap 5 Arabic RTL -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
-    <!-- Google Font (Cairo) -->
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
-    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- PapaParse for parsing CSV -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
 
     <style>
@@ -69,21 +65,21 @@
 
 <div class="container-fluid">
     
-    <!-- Header Section -->
     <div class="dashboard-header d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
         <div>
-            <h3 class="fw-bold text-primary mb-1">📊 داش بورد لوحة متابعة الحوكمة والجاهزية السنوية</h3>
-            <p class="text-muted mb-0">مربوط فورياً بـ Google Sheets (ورقة المتطلبات الرئيسية مع إهمال صفحة التعليمات كلياً)</p>
+            <h3 class="fw-bold text-primary mb-1">📊 لوحة متابعة الحوكمة والجاهزية السنوية</h3>
+            <p class="text-muted mb-0">مربوطة تلقائياً ببيانات Google Sheets مع التحديث المباشر</p>
         </div>
         <div class="d-flex align-items-center gap-2">
-            <label class="fw-bold text-nowrap mb-0">اختر الجهة / الإدارة:</label>
+            <label class="fw-bold text-nowrap mb-0">تصفية حسب الجهة:</label>
             <select id="deptSelect" class="form-select border-primary fw-bold" onchange="filterData()">
                 <option value="ALL">📋 كافة الإدارات والوحدات (اللوحة العامة)</option>
             </select>
         </div>
     </div>
 
-    <!-- KPIs Cards Section -->
+    <div id="statusAlert"></div>
+
     <div class="row g-3 mb-4">
         <div class="col-6 col-md-2">
             <div class="card card-kpi p-3 text-center border-start border-primary border-4">
@@ -123,11 +119,10 @@
         </div>
     </div>
 
-    <!-- Chart & Analytics Section -->
     <div class="row g-4 mb-4">
         <div class="col-lg-8">
             <div class="main-container h-100">
-                <h5 class="fw-bold mb-3">📌 تحليلات حالات المتطلبات الإجمالية</h5>
+                <h5 class="fw-bold mb-3">📌 تحليلات حالات المتطلبات</h5>
                 <canvas id="barChart" height="120"></canvas>
             </div>
         </div>
@@ -139,12 +134,11 @@
         </div>
     </div>
 
-    <!-- Data Table Section -->
     <div class="main-container">
         <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-3">
-            <h5 class="fw-bold mb-0">📋 جدول بيانات المتطلبات الشاملة</h5>
+            <h5 class="fw-bold mb-0">📋 جدول بيانات المتطلبات تفصيلياً</h5>
             <div class="d-flex gap-2 w-md-50">
-                <input type="text" id="searchInput" class="form-control" placeholder="🔍 بحث بالنص أو الشاهد..." onkeyup="filterData()">
+                <input type="text" id="searchInput" class="form-control" placeholder="🔍 بحث بالمتطلب أو الشاهد أو الرقم..." onkeyup="filterData()">
                 <select id="statusFilter" class="form-select w-50" onchange="filterData()">
                     <option value="ALL">جميع الحالات</option>
                     <option value="لم يبدأ">لم يبدأ</option>
@@ -180,54 +174,111 @@
 </div>
 
 <script>
-    // الرابط المباشر الخاص بك لورقة المتطلبات الرئيسية
-    const googleSheetCsvUrl = "https://docs.google.com/spreadsheets/d/1yXNm3YtqmiTJgyerM_075Q6fiJgogzlqRW49FJ384oQ/gviz/tq?tqx=out:csv&sheet=%D8%A7%D9%84%D9%85%D8%AA%D8%B7%D9%84%D8%A8%D8%A7%D8%AA%20%D8%A7%D9%84%D8%B1%D8%A3%D9%8A%D8%B3%D9%8A%D8%A9";
+    const SHEET_ID = '1yXNm3YtqmiTJgyerM_075Q6fiJgogzlqRW49FJ384oQ';
+    
+    const SHEET_URLS = [
+        `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent('المتطلبات الرئيسية')}`,
+        `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&id=${SHEET_ID}`
+    ];
 
     let rawData = [];
     let barChartInstance = null;
     let pieChartInstance = null;
 
+    function cleanStr(str) {
+        if (!str) return '';
+        return String(str).replace(/^\ufeff/, '').trim();
+    }
+
     function getColValue(row, possibleNames) {
-        for (let name of possibleNames) {
-            for (let key in row) {
-                if (key.trim() === name.trim()) return row[key] ? row[key].trim() : '';
+        for (let key in row) {
+            const cleanedKey = cleanStr(key);
+            for (let name of possibleNames) {
+                if (cleanedKey === cleanStr(name)) {
+                    return cleanStr(row[key]);
+                }
             }
         }
         return '';
     }
 
     async function initDashboard() {
-        Papa.parse(googleSheetCsvUrl, {
-            download: true,
-            header: true,
-            skipEmptyLines: true,
-            complete: function(results) {
-                // تصفية البيانات واستبعاد صفحة التعليمات تلقائياً
-                rawData = results.data.filter(row => {
-                    const dept = getColValue(row, ['الجهة المسؤولة', 'الجهة']);
-                    const req = getColValue(row, ['المتطلب التنفيذي', 'المتطلب']);
-                    
-                    return dept !== '' && 
-                           !dept.includes('تعليمات') && 
-                           !dept.includes('مصدر البيانات') &&
-                           !dept.includes('آخر تحديث') &&
-                           req !== '';
+        let loaded = false;
+
+        for (let url of SHEET_URLS) {
+            try {
+                const response = await fetch(url);
+                if (!response.ok) continue;
+                
+                const csvText = await response.text();
+                
+                if (csvText.includes('<!DOCTYPE html>') || csvText.includes('google-site-verification')) {
+                    continue;
+                }
+
+                Papa.parse(csvText, {
+                    header: true,
+                    skipEmptyLines: true,
+                    complete: function(results) {
+                        processParsedData(results.data);
+                        loaded = true;
+                    }
                 });
 
-                populateDepartments();
-                filterData();
-            },
-            error: function(err) {
-                document.getElementById('tableBody').innerHTML = `
-                    <tr><td colspan="6" class="text-center text-danger py-4">⚠️ فشل تحميل البيانات. تأكد من إعدادات مشاركة الرابط (Anyone with link).</td></tr>
-                `;
+                if (loaded) break;
+            } catch (e) {
+                console.warn('Attempt failed:', e);
             }
+        }
+
+        if (!loaded) {
+            showCorsError();
+        }
+    }
+
+    function showCorsError() {
+        document.getElementById('statusAlert').innerHTML = `
+            <div class="alert alert-warning alert-dismissible fade show mb-4" role="alert">
+                <strong>⚠️ تنبيه هادئ:</strong> يرجى التأكد من خطوة <strong>"النشر على الويب"</strong> في ملف جوجل شيت حتى تعمل اللوحة بنجاح دون حظر أمني من المتصفح.<br>
+                <small>الخطوات: افتح الشيت ⬅️ ملف (File) ⬅️ مشاركة (Share) ⬅️ النشر على الويب (Publish to web) ⬅️ اختر ورقة "المتطلبات الرئيسية" بصيغة CSV ⬅️ ثم انقر نشر.</small>
+            </div>
+        `;
+        document.getElementById('tableBody').innerHTML = `
+            <tr>
+                <td colspan="6" class="text-center text-danger py-4">
+                    لم نتمكن من الوصول للبيانات مباشرة. تأكد من إكمال خطوة <strong>"النشر على الويب"</strong> في Google Sheets كما هو موضح بالأعلى.
+                </td>
+            </tr>
+        `;
+    }
+
+    function processParsedData(data) {
+        rawData = data.filter(row => {
+            const dept = getColValue(row, ['الجهة المسؤولة', 'الجهة']);
+            const req = getColValue(row, ['المتطلب التنفيذي', 'المتطلب']);
+            
+            return dept !== '' && 
+                   !dept.includes('تعليمات') && 
+                   !dept.includes('مصدر البيانات') &&
+                   !dept.includes('آخر تحديث') &&
+                   req !== '';
         });
+
+        if (rawData.length > 0) {
+            document.getElementById('statusAlert').innerHTML = '';
+            populateDepartments();
+            filterData();
+        } else {
+            showCorsError();
+        }
     }
 
     function populateDepartments() {
         const departments = [...new Set(rawData.map(item => getColValue(item, ['الجهة المسؤولة', 'الجهة'])))].filter(Boolean).sort();
         const deptSelect = document.getElementById('deptSelect');
+        
+        const currentVal = deptSelect.value;
+        deptSelect.innerHTML = '<option value="ALL">📋 كافة الإدارات والوحدات (اللوحة العامة)</option>';
         
         departments.forEach(dept => {
             const opt = document.createElement('option');
@@ -235,21 +286,21 @@
             opt.textContent = dept;
             deptSelect.appendChild(opt);
         });
+
+        deptSelect.value = currentVal;
     }
 
     function filterData() {
         const selectedDept = document.getElementById('deptSelect').value;
         const selectedStatus = document.getElementById('statusFilter').value;
-        const searchText = document.getElementById('searchInput').value.toLowerCase().trim();
+        const searchText = cleanStr(document.getElementById('searchInput').value).toLowerCase();
 
         let filtered = rawData;
 
-        // تصفية حسب الإدارة
         if (selectedDept !== 'ALL') {
             filtered = filtered.filter(item => getColValue(item, ['الجهة المسؤولة', 'الجهة']) === selectedDept);
         }
 
-        // تصفية حسب الحالة
         if (selectedStatus !== 'ALL') {
             filtered = filtered.filter(item => {
                 const status = getColValue(item, ['حالة المتطلب', 'الحالة']) || 'لم يبدأ';
@@ -257,11 +308,10 @@
             });
         }
 
-        // تصفية البحث النصي
         if (searchText) {
             filtered = filtered.filter(item => {
                 const req = getColValue(item, ['المتطلب التنفيذي', 'المتطلب']).toLowerCase();
-                const evidence = getColValue(item, ['الشاهد/الأدلة المطلوبة', 'الشاهد']).toLowerCase();
+                const evidence = getColValue(item, ['الشاهد/الأدلة المطلوبة', 'الشاهد', 'الشاهد / الأدلة المطلوبة']).toLowerCase();
                 const num = getColValue(item, ['الرقم', 'م']).toLowerCase();
                 return req.includes(searchText) || evidence.includes(searchText) || num.includes(searchText);
             });
@@ -293,7 +343,6 @@
         document.getElementById('kpiOther').innerText = other;
         document.getElementById('kpiRate').innerText = rate + '%';
 
-        // عرض الجدول
         const tbody = document.getElementById('tableBody');
         tbody.innerHTML = '';
 
@@ -304,7 +353,7 @@
                 const tr = document.createElement('tr');
                 const num = getColValue(row, ['الرقم', 'م']);
                 const req = getColValue(row, ['المتطلب التنفيذي', 'المتطلب']);
-                const evidence = getColValue(row, ['الشاهد/الأدلة المطلوبة', 'الشاهد']);
+                const evidence = getColValue(row, ['الشاهد/الأدلة المطلوبة', 'الشاهد', 'الشاهد / الأدلة المطلوبة']);
                 const dept = getColValue(row, ['الجهة المسؤولة', 'الجهة']);
                 const status = getColValue(row, ['حالة المتطلب', 'الحالة']) || 'لم يبدأ';
                 const linkVal = getColValue(row, ['رابط الشاهد', 'الرابط']);
