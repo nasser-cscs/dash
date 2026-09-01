@@ -211,32 +211,23 @@
         function loadData() {
             document.getElementById('tableBody').innerHTML = '<tr><td colspan="7" class="text-center py-4">جاري تحميل البيانات...</td></tr>';
 
-            // حذف أي سكريبت سابق تجنباً للتعارض
             const oldScript = document.getElementById('gviz_script');
             if (oldScript) oldScript.remove();
 
-            // إنشاء استدعاء Dynamic Script Tag لضمان تجاوز حظر CORS
             const script = document.createElement('script');
             script.id = 'gviz_script';
             script.src = `https://docs.google.com/spreadsheets/d/e/${PUBLISHED_KEY}/gviz/tq?tqx=responseHandler:renderDashboardData`;
             
             script.onerror = function() {
-                document.getElementById('tableBody').innerHTML = `
-                    <tr>
-                        <td colspan="7" class="text-center text-danger py-4">
-                            <strong>حدث خطأ في الاتصال بالبيانات!</strong><br>
-                            يرجى التأكد من تشغيل الملف عبر خادم محلي (مثل Live Server في VS Code) أو رفعه على استضافة.
-                        </td>
-                    </tr>`;
+                document.getElementById('tableBody').innerHTML = '<tr><td colspan="7" class="text-center text-danger py-4">حدث خطأ أثناء تحميل البيانات من الشيت.</td></tr>';
             };
 
             document.body.appendChild(script);
         }
 
-        // الاستجابة من جوجل
         window.renderDashboardData = function(json) {
             if (!json || !json.table || !json.table.rows || json.table.rows.length === 0) {
-                document.getElementById('tableBody').innerHTML = '<tr><td colspan="7" class="text-center text-warning py-4">لم يتم العثور على أي بيانات داخل الشيت المنشور.</td></tr>';
+                document.getElementById('tableBody').innerHTML = '<tr><td colspan="7" class="text-center text-warning py-4">لم يتم العثور على أي بيانات داخل المستند.</td></tr>';
                 return;
             }
 
@@ -262,7 +253,6 @@
                 };
             }).filter(item => item['المتطلب التنفيذي'] || item['الجهة المسؤولة']);
 
-            // حذف صف العناوين إن وجد
             if (fullData.length > 0 && (fullData[0]['المتطلب التنفيذي'].includes('المتطلب') || fullData[0]['الرقم'].includes('الرقم'))) {
                 fullData.shift();
             }
