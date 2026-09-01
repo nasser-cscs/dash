@@ -5,170 +5,282 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>لوحة متابعة متطلبات الجاهزية السنوية للحوكمة</title>
     
+    <!-- Bootstrap 5 RTL -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
+    <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Google Fonts (Tajawal) -->
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- PapaParse -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 
     <style>
-        body {
-            font-family: 'Cairo', sans-serif;
-            background-color: #f4f6f9;
-            color: #333;
+        :root {
+            --bg-primary: #0f172a;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --border-color: #e2e8f0;
         }
-        .navbar {
-            background: linear-gradient(135deg, #1e3c72, #2a5298);
-        }
-        .card-kpi {
-            border: none;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-            transition: transform 0.2s;
-        }
-        .card-kpi:hover {
-            transform: translateY(-3px);
-        }
-        .kpi-icon {
-            font-size: 2.2rem;
-            opacity: 0.8;
-        }
-        .bg-status-completed { background-color: #d1e7dd; color: #0f5132; }
-        .bg-status-progress { background-color: #cff4fc; color: #055160; }
-        .bg-status-notstarted { background-color: #e2e3e5; color: #41464b; }
-        .bg-status-delayed { background-color: #f8d7da; color: #842029; }
-        .bg-status-na { background-color: #fff3cd; color: #664d03; }
 
-        .table-responsive {
-            background: white;
-            border-radius: 12px;
-            padding: 15px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        body {
+            font-family: 'Tajawal', sans-serif;
+            background-color: #f1f5f9;
+            color: var(--text-main);
+            padding-bottom: 40px;
         }
-        .badge-status {
-            padding: 6px 12px;
-            border-radius: 20px;
+
+        /* Navbar Header */
+        .dashboard-header {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: white;
+            padding: 20px 0;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+
+        /* KPI Cards */
+        .kpi-card {
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 20px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+            transition: all 0.25s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .kpi-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.08);
+        }
+        .kpi-card .kpi-title {
             font-size: 0.85rem;
-            font-weight: 600;
+            color: #64748b;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        .kpi-card .kpi-value {
+            font-size: 1.8rem;
+            font-weight: 800;
+            line-height: 1;
+        }
+        .kpi-icon-box {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+        }
+
+        /* Custom Theme Colors for KPIs */
+        .kpi-total .kpi-icon-box { background: #e0f2fe; color: #0284c7; }
+        .kpi-completed .kpi-icon-box { background: #dcfce7; color: #16a34a; }
+        .kpi-progress .kpi-icon-box { background: #e0e7ff; color: #4f46e5; }
+        .kpi-notstarted .kpi-icon-box { background: #f1f5f9; color: #64748b; }
+        .kpi-delayed .kpi-icon-box { background: #ffe4e6; color: #e11d48; }
+        .kpi-rate .kpi-icon-box { background: #fef3c7; color: #d97706; }
+
+        /* Chart & Section Cards */
+        .content-card {
+            background: white;
+            border-radius: 16px;
+            padding: 22px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+            margin-bottom: 25px;
+        }
+        .card-header-custom {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        .card-header-custom h6 {
+            font-weight: 800;
+            font-size: 1.05rem;
+            margin: 0;
+            color: #0f172a;
+        }
+
+        /* Table Design */
+        .table {
+            vertical-align: middle;
+        }
+        .table thead th {
+            background-color: #f8fafc;
+            color: #475569;
+            font-weight: 700;
+            font-size: 0.85rem;
+            border-bottom: 2px solid #e2e8f0;
+            padding: 14px 12px;
+        }
+        .table tbody td {
+            padding: 14px 12px;
+            font-size: 0.9rem;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        
+        /* Custom Status Badges */
+        .badge-status {
+            padding: 6px 14px;
+            border-radius: 30px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .status-completed { background: #dcfce7; color: #15803d; }
+        .status-progress { background: #e0e7ff; color: #4338ca; }
+        .status-notstarted { background: #f1f5f9; color: #475569; }
+        .status-delayed { background: #ffe4e6; color: #be123c; }
+        .status-na { background: #fef3c7; color: #b45309; }
+
+        .search-input, .select-input {
+            border-radius: 10px;
+            border: 1px solid #cbd5e1;
+            padding: 8px 14px;
+            font-size: 0.9rem;
+        }
+        .search-input:focus, .select-input:focus {
+            box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+            border-color: #0284c7;
         }
     </style>
 </head>
 <body>
 
-    <nav class="navbar navbar-dark mb-4 shadow">
+    <!-- الترويسة العليا -->
+    <header class="dashboard-header">
         <div class="container-fluid px-4">
-            <span class="navbar-brand mb-0 h1">
-                <i class="fa-solid fa-chart-line me-2"></i>
-                لوحة متابعة متطلبات الجاهزية السنوية للحوكمة
-            </span>
-            <button class="btn btn-outline-light btn-sm" onclick="loadData()">
-                <i class="fa-solid fa-rotate me-1"></i> تحديث البيانات
-            </button>
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h4 class="fw-bold mb-1"><i class="fa-solid fa-chart-pie text-info me-2"></i>لوحة متابعة متطلبات الجاهزية السنوية للحوكمة</h4>
+                    <p class="text-white-50 small mb-0">نظام المتابعة الذكي للجاهزية والامتثال</p>
+                </div>
+                <button class="btn btn-sm btn-light rounded-pill px-3 shadow-sm fw-bold" onclick="loadData()">
+                    <i class="fa-solid fa-rotate text-primary me-1"></i> تحديث البيانات
+                </button>
+            </div>
         </div>
-    </nav>
+    </header>
 
     <div class="container-fluid px-4">
         
+        <!-- بطاقات KPIs الرقمية -->
         <div class="row g-3 mb-4">
             <div class="col-md-2">
-                <div class="card card-kpi p-3 bg-white">
+                <div class="kpi-card kpi-total">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <small class="text-muted fw-bold">إجمالي المتطلبات</small>
-                            <h3 class="mb-0 fw-bold text-primary" id="kpi-total">0</h3>
+                            <div class="kpi-title">إجمالي المتطلبات</div>
+                            <div class="kpi-value text-dark" id="kpi-total">0</div>
                         </div>
-                        <i class="fa-solid fa-list-check kpi-icon text-primary"></i>
+                        <div class="kpi-icon-box"><i class="fa-solid fa-list-check"></i></div>
                     </div>
                 </div>
             </div>
             <div class="col-md-2">
-                <div class="card card-kpi p-3 bg-white">
+                <div class="kpi-card kpi-completed">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <small class="text-muted fw-bold">مكتملة</small>
-                            <h3 class="mb-0 fw-bold text-success" id="kpi-completed">0</h3>
+                            <div class="kpi-title">مكتملة</div>
+                            <div class="kpi-value text-success" id="kpi-completed">0</div>
                         </div>
-                        <i class="fa-solid fa-circle-check kpi-icon text-success"></i>
+                        <div class="kpi-icon-box"><i class="fa-solid fa-circle-check"></i></div>
                     </div>
                 </div>
             </div>
             <div class="col-md-2">
-                <div class="card card-kpi p-3 bg-white">
+                <div class="kpi-card kpi-progress">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <small class="text-muted fw-bold">جاري التنفيذ</small>
-                            <h3 class="mb-0 fw-bold text-info" id="kpi-progress">0</h3>
+                            <div class="kpi-title">جاري التنفيذ</div>
+                            <div class="kpi-value text-primary" id="kpi-progress">0</div>
                         </div>
-                        <i class="fa-solid fa-spinner kpi-icon text-info"></i>
+                        <div class="kpi-icon-box"><i class="fa-solid fa-spinner"></i></div>
                     </div>
                 </div>
             </div>
             <div class="col-md-2">
-                <div class="card card-kpi p-3 bg-white">
+                <div class="kpi-card kpi-notstarted">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <small class="text-muted fw-bold">لم يبدأ</small>
-                            <h3 class="mb-0 fw-bold text-secondary" id="kpi-notstarted">0</h3>
+                            <div class="kpi-title">لم يبدأ</div>
+                            <div class="kpi-value text-secondary" id="kpi-notstarted">0</div>
                         </div>
-                        <i class="fa-solid fa-clock kpi-icon text-secondary"></i>
+                        <div class="kpi-icon-box"><i class="fa-solid fa-hourglass-start"></i></div>
                     </div>
                 </div>
             </div>
             <div class="col-md-2">
-                <div class="card card-kpi p-3 bg-white">
+                <div class="kpi-card kpi-delayed">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <small class="text-muted fw-bold">متأخرة</small>
-                            <h3 class="mb-0 fw-bold text-danger" id="kpi-delayed">0</h3>
+                            <div class="kpi-title">متأخرة</div>
+                            <div class="kpi-value text-danger" id="kpi-delayed">0</div>
                         </div>
-                        <i class="fa-solid fa-triangle-exclamation kpi-icon text-danger"></i>
+                        <div class="kpi-icon-box"><i class="fa-solid fa-triangle-exclamation"></i></div>
                     </div>
                 </div>
             </div>
             <div class="col-md-2">
-                <div class="card card-kpi p-3 bg-white">
+                <div class="kpi-card kpi-rate">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <small class="text-muted fw-bold">نسبة الإنجاز</small>
-                            <h3 class="mb-0 fw-bold text-dark" id="kpi-rate">0%</h3>
+                            <div class="kpi-title">نسبة الإنجاز</div>
+                            <div class="kpi-value text-warning" id="kpi-rate">0%</div>
                         </div>
-                        <i class="fa-solid fa-chart-pie kpi-icon text-dark"></i>
+                        <div class="kpi-icon-box"><i class="fa-solid fa-chart-line"></i></div>
                     </div>
                 </div>
             </div>
         </div>
 
+        <!-- الرسوم البيانية التفاعلية -->
         <div class="row g-3 mb-4">
-            <div class="col-md-8">
-                <div class="card p-3 shadow-sm border-0 h-100">
-                    <h6 class="fw-bold mb-3"><i class="fa-solid fa-building me-2 text-primary"></i>نسبة الإنجاز وعدد المتطلبات حسب الجهة المسؤولة</h6>
-                    <div style="position: relative; height: 280px;">
+            <div class="col-md-7">
+                <div class="content-card h-100 mb-0">
+                    <div class="card-header-custom">
+                        <h6><i class="fa-solid fa-building me-2 text-primary"></i>توزيع المتطلبات حسب الجهة المسؤولة</h6>
+                    </div>
+                    <div style="position: relative; height: 300px;">
                         <canvas id="chartDept"></canvas>
                     </div>
                 </div>
             </div>
-            <div class="col-md-4">
-                <div class="card p-3 shadow-sm border-0 h-100">
-                    <h6 class="fw-bold mb-3"><i class="fa-solid fa-chart-pie me-2 text-primary"></i>توزيع حالات المتطلبات</h6>
-                    <div style="position: relative; height: 280px;" class="d-flex justify-content-center">
+            <div class="col-md-5">
+                <div class="content-card h-100 mb-0">
+                    <div class="card-header-custom">
+                        <h6><i class="fa-solid fa-chart-pie me-2 text-primary"></i>حالة المتطلبات الإجمالية</h6>
+                    </div>
+                    <div style="position: relative; height: 300px;" class="d-flex justify-content-center">
                         <canvas id="chartStatus"></canvas>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="table-responsive mb-5">
-            <div class="row g-2 mb-3 align-items-center">
+        <!-- جدول البيانات والفلترة -->
+        <div class="content-card">
+            <div class="row g-3 mb-3 align-items-center">
                 <div class="col-md-4">
-                    <input type="text" id="searchInput" class="form-control" placeholder="🔍 بحث في المتطلبات..." oninput="filterData()">
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
+                        <input type="text" id="searchInput" class="form-control search-input border-start-0" placeholder="بحث في المسمى أو الجهة..." oninput="filterData()">
+                    </div>
                 </div>
                 <div class="col-md-3">
-                    <select id="filterDept" class="form-select" onchange="filterData()">
+                    <select id="filterDept" class="form-select select-input" onchange="filterData()">
                         <option value="">جميع الجهات المسؤولة</option>
                     </select>
                 </div>
                 <div class="col-md-3">
-                    <select id="filterStatus" class="form-select" onchange="filterData()">
+                    <select id="filterStatus" class="form-select select-input" onchange="filterData()">
                         <option value="">جميع الحالات</option>
                         <option value="لم يبدأ">لم يبدأ</option>
                         <option value="جاري التنفيذ">جاري التنفيذ</option>
@@ -178,79 +290,105 @@
                     </select>
                 </div>
                 <div class="col-md-2 text-end">
-                    <span id="rowCount" class="text-muted fw-bold">العدد: 0</span>
+                    <span id="rowCount" class="badge bg-light text-dark border p-2 fw-bold">العدد: 0</span>
                 </div>
             </div>
 
-            <table class="table table-hover align-middle">
-                <thead class="table-light">
-                    <tr>
-                        <th>الرقم</th>
-                        <th style="width: 35%;">المتطلب التنفيذي</th>
-                        <th>الجهة المسؤولة</th>
-                        <th>دورية المتطلب</th>
-                        <th>حالة المتطلب</th>
-                        <th>تاريخ الاستحقاق</th>
-                        <th>الشاهد/الأدلة</th>
-                    </tr>
-                </thead>
-                <tbody id="tableBody">
-                    <tr><td colspan="7" class="text-center py-4">جاري تحميل البيانات...</td></tr>
-                </tbody>
-            </table>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th style="width: 5%;">الرقم</th>
+                            <th style="width: 38%;">المتطلب التنفيذي</th>
+                            <th style="width: 18%;">الجهة المسؤولة</th>
+                            <th style="width: 10%;">الدورية</th>
+                            <th style="width: 12%;">الحالة</th>
+                            <th style="width: 10%;">تاريخ الاستحقاق</th>
+                            <th style="width: 7%;" class="text-center">الشاهد</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        <tr><td colspan="7" class="text-center py-5 text-muted"><i class="fa-solid fa-spinner fa-spin me-2"></i> جاري تحميل البيانات...</td></tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
 
     </div>
 
     <script>
-        const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQAeOYqR6dQsIiHpOb1FEnPK64TJaiO3p9_v0qu4bHH_ZALY0QMXsvnUsoSjyn4qW-EenW_Pss_Y6LR/pub?output=csv";
+        const TARGET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQAeOYqR6dQsIiHpOb1FEnPK64TJaiO3p9_v0qu4bHH_ZALY0QMXsvnUsoSjyn4qW-EenW_Pss_Y6LR/pub?output=csv";
 
         let fullData = [];
         let chartStatusInstance = null;
         let chartDeptInstance = null;
 
+        function cleanText(str) {
+            return String(str || '').replace(/^["'\s]+|["'\s]+$/g, '').trim();
+        }
+
         function loadData() {
-            document.getElementById('tableBody').innerHTML = '<tr><td colspan="7" class="text-center py-4">جاري تحميل البيانات...</td></tr>';
+            document.getElementById('tableBody').innerHTML = '<tr><td colspan="7" class="text-center py-5 text-muted"><i class="fa-solid fa-spinner fa-spin me-2"></i> جاري تحميل البيانات...</td></tr>';
 
-            Papa.parse(CSV_URL, {
-                download: true,
-                header: false,
-                skipEmptyLines: true,
-                complete: function(results) {
-                    if (!results.data || results.data.length === 0) {
-                        document.getElementById('tableBody').innerHTML = '<tr><td colspan="7" class="text-center text-warning py-4">لم يتم العثور على بيانات داخل الملف.</td></tr>';
-                        return;
-                    }
+            fetch(TARGET_URL)
+                .then(response => response.text())
+                .then(csvText => {
+                    Papa.parse(csvText, {
+                        header: false,
+                        skipEmptyLines: true,
+                        complete: function(results) {
+                            if (!results.data || results.data.length === 0) {
+                                document.getElementById('tableBody').innerHTML = '<tr><td colspan="7" class="text-center py-4 text-warning">لا توجد بيانات متاحة</td></tr>';
+                                return;
+                            }
 
-                    const rawRows = results.data;
+                            const rawRows = results.data;
+                            let headers = rawRows[0].map(h => cleanText(h));
 
-                    fullData = rawRows.map(row => {
-                        return {
-                            'الرقم': row[0] || '',
-                            'المتطلب التنفيذي': row[1] || '',
-                            'الجهة المسؤولة': row[2] || '',
-                            'دورية المتطلب': row[3] || 'سنوي',
-                            'حالة المتطلب': row[4] || 'لم يبدأ',
-                            'تاريخ الاستحقاق': row[5] || '-',
-                            'رابط الشاهد': row[6] || ''
-                        };
-                    }).filter(item => item['المتطلب التنفيذي'] || item['الجهة المسؤولة']);
+                            // البحث عن فهارس الاعمدة الذكية بغض النظر عن ترتيب الشيت
+                            let idIdx = headers.findIndex(h => h.includes('الرقم') || h.includes('#'));
+                            let reqIdx = headers.findIndex(h => h.includes('المتطلب'));
+                            let deptIdx = headers.findIndex(h => h.includes('الجهة') || h.includes('المسؤولة'));
+                            let freqIdx = headers.findIndex(h => h.includes('دورية'));
+                            let statusIdx = headers.findIndex(h => h.includes('حالة'));
+                            let dateIdx = headers.findIndex(h => h.includes('تاريخ') || h.includes('استحقاق'));
+                            let linkIdx = headers.findIndex(h => h.includes('شاهد') || h.includes('أدلة') || h.includes('رابط'));
 
-                    if (fullData.length > 0 && (fullData[0]['المتطلب التنفيذي'].includes('المتطلب') || fullData[0]['الرقم'].includes('الرقم'))) {
-                        fullData.shift();
-                    }
+                            // الاحتياط في حال لم يجد العناوين بنفس الاسم
+                            if (idIdx === -1) idIdx = 0;
+                            if (reqIdx === -1) reqIdx = 1;
+                            if (deptIdx === -1) deptIdx = 2;
+                            if (freqIdx === -1) freqIdx = 3;
+                            if (statusIdx === -1) statusIdx = 4;
+                            if (dateIdx === -1) dateIdx = 5;
+                            if (linkIdx === -1) linkIdx = 6;
 
-                    populateDeptFilter();
-                    updateDashboard(fullData);
-                },
-                error: function(err) {
-                    document.getElementById('tableBody').innerHTML = '<tr><td colspan="7" class="text-center text-danger py-4">تأكد من تغيير خيار النشر في Google Sheets إلى CSV.</td></tr>';
-                }
-            });
+                            let rows = rawRows.slice(1);
+
+                            fullData = rows.map(row => {
+                                return {
+                                    id: cleanText(row[idIdx]),
+                                    req: cleanText(row[reqIdx]),
+                                    dept: cleanText(row[deptIdx]),
+                                    freq: cleanText(row[freqIdx]) || 'سنوي',
+                                    status: cleanText(row[statusIdx]) || 'لم يبدأ',
+                                    date: cleanText(row[dateIdx]) || '-',
+                                    link: cleanText(row[linkIdx])
+                                };
+                            }).filter(item => item.req.length > 0 && !item.req.startsWith('صفحة') && !item.req.includes('قاعدة البيانات'));
+
+                            populateDeptFilter();
+                            updateDashboard(fullData);
+                        }
+                    });
+                })
+                .catch(err => {
+                    document.getElementById('tableBody').innerHTML = '<tr><td colspan="7" class="text-center py-4 text-danger">تعذر استخراج البيانات.</td></tr>';
+                });
         }
 
         function populateDeptFilter() {
-            const depts = [...new Set(fullData.map(r => String(r['الجهة المسؤولة']).trim()))].filter(Boolean);
+            const depts = [...new Set(fullData.map(r => r.dept))].filter(Boolean);
             const select = document.getElementById('filterDept');
             select.innerHTML = '<option value="">جميع الجهات المسؤولة</option>';
             depts.forEach(d => {
@@ -264,10 +402,9 @@
             const status = document.getElementById('filterStatus').value;
 
             const filtered = fullData.filter(row => {
-                const matchSearch = String(row['المتطلب التنفيذي'] || '').toLowerCase().includes(search) || 
-                                    String(row['الجهة المسؤولة'] || '').toLowerCase().includes(search);
-                const matchDept = !dept || String(row['الجهة المسؤولة']).trim() === dept;
-                const matchStatus = !status || String(row['حالة المتطلب'] || '').trim() === status;
+                const matchSearch = row.req.toLowerCase().includes(search) || row.dept.toLowerCase().includes(search);
+                const matchDept = !dept || row.dept === dept;
+                const matchStatus = !status || row.status === status;
                 return matchSearch && matchDept && matchStatus;
             });
 
@@ -276,11 +413,11 @@
 
         function updateDashboard(data) {
             const total = data.length;
-            const completed = data.filter(r => String(r['حالة المتطلب']||'').trim() === 'مكتمل').length;
-            const progress = data.filter(r => String(r['حالة المتطلب']||'').trim() === 'جاري التنفيذ').length;
-            const notstarted = data.filter(r => String(r['حالة المتطلب']||'').trim() === 'لم يبدأ').length;
-            const delayed = data.filter(r => String(r['حالة المتطلب']||'').trim() === 'متأخر').length;
-            const na = data.filter(r => String(r['حالة المتطلب']||'').trim() === 'لا ينطبق').length;
+            const completed = data.filter(r => r.status.includes('مكتمل')).length;
+            const progress = data.filter(r => r.status.includes('جاري')).length;
+            const notstarted = data.filter(r => r.status.includes('لم يبدأ')).length;
+            const delayed = data.filter(r => r.status.includes('متأخر')).length;
+            const na = data.filter(r => r.status.includes('لا ينطبق')).length;
 
             const rate = total > 0 ? Math.round((completed / (total - na || 1)) * 100) : 0;
 
@@ -297,14 +434,11 @@
         }
 
         function getStatusBadge(status) {
-            status = String(status || 'لم يبدأ').trim();
-            switch(status) {
-                case 'مكتمل': return '<span class="badge badge-status bg-status-completed"><i class="fa-solid fa-check me-1"></i> مكتمل</span>';
-                case 'جاري التنفيذ': return '<span class="badge badge-status bg-status-progress"><i class="fa-solid fa-spinner me-1"></i> جاري التنفيذ</span>';
-                case 'متأخر': return '<span class="badge badge-status bg-status-delayed"><i class="fa-solid fa-exclamation me-1"></i> متأخر</span>';
-                case 'لا ينطبق': return '<span class="badge badge-status bg-status-na"><i class="fa-solid fa-minus me-1"></i> لا ينطبق</span>';
-                default: return '<span class="badge badge-status bg-status-notstarted"><i class="fa-solid fa-clock me-1"></i> لم يبدأ</span>';
-            }
+            if (status.includes('مكتمل')) return '<span class="badge-status status-completed"><i class="fa-solid fa-circle-check"></i> مكتمل</span>';
+            if (status.includes('جاري')) return '<span class="badge-status status-progress"><i class="fa-solid fa-spinner"></i> جاري التنفيذ</span>';
+            if (status.includes('متأخر')) return '<span class="badge-status status-delayed"><i class="fa-solid fa-circle-exclamation"></i> متأخر</span>';
+            if (status.includes('لا ينطبق')) return '<span class="badge-status status-na"><i class="fa-solid fa-minus"></i> لا ينطبق</span>';
+            return '<span class="badge-status status-notstarted"><i class="fa-solid fa-clock"></i> لم يبدأ</span>';
         }
 
         function renderTable(data) {
@@ -312,31 +446,31 @@
             tbody.innerHTML = '';
 
             if (data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted">لا توجد بيانات مطابقة للبحث</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted">لا توجد سجلات مطابقة للبحث</td></tr>';
                 return;
             }
 
-            data.forEach(row => {
-                const linkVal = String(row['رابط الشاهد'] || '');
-                const link = linkVal.startsWith('http') 
-                    ? `<a href="${linkVal}" target="_blank" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-link"></i></a>` 
+            data.forEach((row, idx) => {
+                const linkBtn = row.link.startsWith('http') 
+                    ? `<a href="${row.link}" target="_blank" class="btn btn-sm btn-outline-primary rounded-circle"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>` 
                     : '-';
 
                 tbody.innerHTML += `
                     <tr>
-                        <td><strong>${row['الرقم'] || ''}</strong></td>
-                        <td>${row['المتطلب التنفيذي'] || ''}</td>
-                        <td><span class="badge bg-light text-dark border">${row['الجهة المسؤولة'] || ''}</span></td>
-                        <td><small>${row['دورية المتطلب'] || 'سنوي'}</small></td>
-                        <td>${getStatusBadge(row['حالة المتطلب'])}</td>
-                        <td><small>${row['تاريخ الاستحقاق'] || '-'}</small></td>
-                        <td>${link}</td>
+                        <td class="fw-bold text-muted">${row.id || (idx + 1)}</td>
+                        <td class="fw-semibold text-dark">${row.req}</td>
+                        <td>${row.dept ? `<span class="badge bg-white text-dark border px-2 py-1 rounded-3">${row.dept}</span>` : '<span class="text-muted">-</span>'}</td>
+                        <td><small class="text-secondary">${row.freq}</small></td>
+                        <td>${getStatusBadge(row.status)}</td>
+                        <td><small class="text-muted">${row.date}</small></td>
+                        <td class="text-center">${linkBtn}</td>
                     </tr>
                 `;
             });
         }
 
         function renderCharts(data, statusCounts) {
+            // Chart 1: Doughnut
             const ctxStatus = document.getElementById('chartStatus').getContext('2d');
             if (chartStatusInstance) chartStatusInstance.destroy();
             chartStatusInstance = new Chart(ctxStatus, {
@@ -345,20 +479,26 @@
                     labels: ['مكتمل', 'جاري التنفيذ', 'لم يبدأ', 'متأخر', 'لا ينطبق'],
                     datasets: [{
                         data: [statusCounts.completed, statusCounts.progress, statusCounts.notstarted, statusCounts.delayed, statusCounts.na],
-                        backgroundColor: ['#198754', '#0dcaf0', '#6c757d', '#dc3545', '#ffc107']
+                        backgroundColor: ['#22c55e', '#6366f1', '#94a3b8', '#ef4444', '#f59e0b'],
+                        borderWidth: 4,
+                        borderColor: '#ffffff'
                     }]
                 },
-                options: { responsive: true, maintainAspectRatio: false }
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } },
+                    cutout: '70%'
+                }
             });
 
+            // Chart 2: Bar Depts
             const deptMap = {};
             data.forEach(r => {
-                const dept = String(r['الجهة المسؤولة'] || '').trim();
-                if (dept) {
-                    if (!deptMap[dept]) deptMap[dept] = { total: 0, completed: 0 };
-                    deptMap[dept].total++;
-                    if (String(r['حالة المتطلب']||'').trim() === 'مكتمل') deptMap[dept].completed++;
-                }
+                const dept = r.dept || 'غير محدد';
+                if (!deptMap[dept]) deptMap[dept] = { total: 0, completed: 0 };
+                deptMap[dept].total++;
+                if (r.status.includes('مكتمل')) deptMap[dept].completed++;
             });
 
             const deptLabels = Object.keys(deptMap);
@@ -372,14 +512,15 @@
                 data: {
                     labels: deptLabels,
                     datasets: [
-                        { label: 'إجمالي المتطلبات', data: deptTotals, backgroundColor: '#0d6efd' },
-                        { label: 'المكتملة', data: deptCompleted, backgroundColor: '#198754' }
+                        { label: 'إجمالي المتطلبات', data: deptTotals, backgroundColor: '#38bdf8', borderRadius: 6 },
+                        { label: 'المكتملة', data: deptCompleted, backgroundColor: '#22c55e', borderRadius: 6 }
                     ]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    scales: { y: { beginAtZero: true } }
+                    plugins: { legend: { position: 'bottom' } },
+                    scales: { y: { beginAtZero: true, grid: { color: '#f1f5f9' } }, x: { grid: { display: false } } }
                 }
             });
         }
