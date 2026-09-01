@@ -1,251 +1,218 @@
-import streamlit as st
-import pandas as pd
-import plotly.express as px
-import urllib.parse
-
-# -----------------------------------------------------------------------------
-# 1. إعدادات الصفحة والتصميم
-# -----------------------------------------------------------------------------
-st.set_page_config(
-    page_title="داش بورد لوحة متابعة الحوكمة",
-    page_icon="📊",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
-# دعم اللغة العربية والاتجاه من اليمين لليسار (RTL)
-st.markdown("""
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة متابعة الحوكمة والجاهزية السنوية</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
-    html, body, [class*="css"]  {
-        font-family: 'Cairo', sans-serif;
-        direction: rtl;
-        text-align: right;
-    }
-    .stMetric {
-        background-color: #ffffff;
-        border: 1px solid #e0e0e0;
-        padding: 15px;
-        border-radius: 10px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        text-align: center;
-    }
-    .stDataFrame {
-        direction: rtl;
-    }
+        body { font-family: 'Cairo', sans-serif; background-color: #f4f6f9; padding: 20px; }
+        .card-kpi { border-radius: 12px; border: none; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .kpi-title { font-size: 0.9rem; color: #6c757d; font-weight: 600; }
+        .kpi-value { font-size: 1.8rem; font-weight: 700; color: #1e293b; }
+        .table-container { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
     </style>
-""", unsafe_allow_html=True)
+</head>
+<body>
 
-# -----------------------------------------------------------------------------
-# 2. إعدادات الربط مع Google Sheets
-# -----------------------------------------------------------------------------
-st.sidebar.title("⚙️ ربط Google Sheets")
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-primary mb-1">📊 لوحة متابعة الحوكمة والجاهزية السنوية</h2>
+            <p class="text-muted mb-0">مربوطة تلقائيًا بـ Google Sheets (تُهمل صفحة التعليمات كليًا)</p>
+        </div>
+        <div class="w-25">
+            <label class="fw-bold mb-1">اختر الإدارة / الوحدة:</label>
+            <select id="deptSelect" class="form-select border-primary" onchange="filterData()">
+                <option value="ALL">📋 كافة الإدارات (اللوحة العامة)</option>
+            </select>
+        </div>
+    </div>
 
-sheet_id = st.sidebar.text_input(
-    "معرّف ملف جوجل شيت (Sheet ID):", 
-    value="1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-    help="أدخل ID الملف الموجود في رابط Google Sheets بين /d/ و /edit"
-)
+    <!-- KPIs -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-2">
+            <div class="card card-kpi p-3 text-center border-start border-primary border-4">
+                <div class="kpi-title">إجمالي المتطلبات</div>
+                <div class="kpi-value" id="kpiTotal">0</div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card card-kpi p-3 text-center border-start border-success border-4">
+                <div class="kpi-title">مكتملة ✅</div>
+                <div class="kpi-value text-success" id="kpiCompleted">0</div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card card-kpi p-3 text-center border-start border-warning border-4">
+                <div class="kpi-title">جاري التنفيذ ⏳</div>
+                <div class="kpi-value text-warning" id="kpiInProgress">0</div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card card-kpi p-3 text-center border-start border-danger border-4">
+                <div class="kpi-title">لم يبدأ 🔴</div>
+                <div class="kpi-value text-danger" id="kpiNotStarted">0</div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card card-kpi p-3 text-center border-start border-secondary border-4">
+                <div class="kpi-title">متأخر / لا ينطبق</div>
+                <div class="kpi-value text-secondary" id="kpiOther">0</div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card card-kpi p-3 text-center bg-primary text-white">
+                <div class="kpi-title text-white-50">نسبة الإنجاز</div>
+                <div class="kpi-value text-white" id="kpiRate">0%</div>
+            </div>
+        </div>
+    </div>
 
-# ضمان اختيار صفحة المتطلبات الرئيسية وإهمال التعليمات
-sheet_name = "المتطلبات الرئيسية"
-gid = st.sidebar.text_input("معرّف الصفحة (GID) - اختياري:", value="", help="إذا كانت الصفحة الرئيسية ليست الأولى، أدخل رقم GID الخاص بصفحة المتطلبات الرئيسية")
+    <!-- Chart -->
+    <div class="card card-kpi p-3 mb-4">
+        <h5 class="fw-bold mb-3">📌 رسم بياني لحالة المتطلبات</h5>
+        <canvas id="statusChart" height="80"></canvas>
+    </div>
 
-@st.cache_data(ttl=30)  # تحديث البيانات تلقائياً كل 30 ثانية
-def load_data_from_google_sheets(s_id, g_name, g_id):
-    encoded_sheet_name = urllib.parse.quote(g_name)
+    <!-- Table -->
+    <div class="table-container">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="fw-bold mb-0">📋 جدول البيانات والتحديثات التفصيلية</h5>
+            <input type="text" id="searchInput" class="form-select w-25" placeholder="🔍 بحث في المتطلبات..." onkeyup="filterData()">
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>الرقم</th>
+                        <th>المتطلب التنفيذي</th>
+                        <th>الشاهد / الأدلة المطلوبة</th>
+                        <th>الجهة المسؤولة</th>
+                        <th>حالة المتطلب</th>
+                        <th>رابط الشاهد</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ضعي رابط CSV المصدر من Google Sheets هنا (تأكدي أنه يشير لصفحة المتطلبات الرئيسية عبر gid)
+    const googleSheetCsvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ.../pub?gid=YOUR_GID&single=true&output=csv";
     
-    # بناء رابط التصدير التلقائي بناءً على GID أو اسم الصفحة
-    if g_id.strip():
-        url = f"https://docs.google.com/spreadsheets/d/{s_id}/export?format=csv&gid={g_id.strip()}"
-    else:
-        url = f"https://docs.google.com/spreadsheets/d/{s_id}/gviz/tq?tqx=out:csv&sheet={encoded_sheet_name}"
-        
-    df = pd.read_csv(url)
-    
-    # -------------------------------------------------------------------------
-    # استبعاد صفحة التعليمات وتنظيف البيانات
-    # -------------------------------------------------------------------------
-    # إذا كانت القراءة سحبت صفحة التعليمات عن الخطأ، سنقوم بتصفية الأعمدة والصفوف
-    if "الجهة المسؤولة" not in df.columns:
-        # البحث عن السطر المبتدئ بالرقم والمتطلب
-        df.columns = df.iloc[0]
-        df = df[1:]
-        
-    # تصفية الصفوف التي تحتوي على بيانات المتطلبات فقط وإهمال الصفوف الفارغة/التعليمات
-    if "الجهة المسؤولة" in df.columns:
-        df = df.dropna(subset=["الجهة المسؤولة"])
-        df = df[df["الجهة المسؤولة"].astype(str).str.strip() != ""]
-        df = df[~df["الجهة المسؤولة"].astype(str).str.contains("تعليمات|مصدر البيانات", na=False)]
-    
-    # معالجة عمود الرقم وحالة المتطلب
-    if "الرقم" in df.columns:
-        df["الرقم"] = df["الرقم"].astype(str).str.replace(".0", "", regex=False)
-        
-    if "حالة المتطلب" in df.columns:
-        df["حالة المتطلب"] = df["حالة المتطلب"].fillna("لم يبدأ").astype(str).str.strip()
-        
-    return df
+    let rawData = [];
+    let myChart = null;
 
-# جلب البيانات
-try:
-    df_raw = load_data_from_google_sheets(sheet_id, sheet_name, gid)
-    st.sidebar.success(f"✅ تم الاتصال بنجاح | إجمالي المتطلبات: {len(df_raw)}")
-except Exception as e:
-    st.sidebar.error("⚠️ فشل الاتصال برابط Google Sheets. يُرجى التأكد من نشر الملف (Publish to web) وتحديد الـ Sheet ID الصحيح.")
-    st.stop()
+    async function fetchData() {
+        // جلب البيانات مع تجاهل صفحة التعليمات تلقائياً
+        Papa.parse(googleSheetCsvUrl, {
+            download: true,
+            header: true,
+            complete: function(results) {
+                // تصفية صفحة التعليمات والصفوف الفارغة
+                rawData = results.data.filter(row => row['الجهة المسؤولة'] && row['الجهة المسؤولة'].trim() !== "" && !row['الجهة المسؤولة'].includes("تعليمات"));
+                populateDeptDropdown();
+                filterData();
+            }
+        });
+    }
 
-# -----------------------------------------------------------------------------
-# 3. تصفية وتقسيم الإدارات والوحدات
-# -----------------------------------------------------------------------------
-st.sidebar.markdown("---")
-st.sidebar.subheader("🏢 تصفية الإدارة / الوحدة")
+    function populateDeptDropdown() {
+        const depts = [...new Set(rawData.map(item => item['الجهة المسؤولة']))].sort();
+        const select = document.getElementById('deptSelect');
+        depts.forEach(dept => {
+            const opt = document.createElement('option');
+            opt.value = dept;
+            opt.textContent = dept;
+            select.appendChild(opt);
+        });
+    }
 
-all_departments = sorted(df_raw["الجهة المسؤولة"].unique().tolist())
-dept_options = ["📋 كافة الإدارات (اللوحة العامة)"] + all_departments
+    function filterData() {
+        const selectedDept = document.getElementById('deptSelect').value;
+        const searchText = document.getElementById('searchInput').value.toLowerCase();
 
-selected_dept_option = st.sidebar.selectbox("اختر الإدارة / الوحدة:", dept_options)
+        let filtered = rawData;
+        if (selectedDept !== 'ALL') {
+            filtered = filtered.filter(item => item['الجهة المسؤولة'] === selectedDept);
+        }
 
-# -----------------------------------------------------------------------------
-# 4. معالجة البيانات وبناء الداش بورد
-# -----------------------------------------------------------------------------
-if selected_dept_option == "📋 كافة الإدارات (اللوحة العامة)":
-    df_filtered = df_raw.copy()
-    st.title("📊 لوحة متابعة الحوكمة والجاهزية السنوية - العامة")
-    st.caption("تحديث تلقائي وفوري من Google Sheets (إهمال صفحة التعليمات ومعالجة كافة المتطلبات)")
-else:
-    selected_dept = selected_dept_option
-    df_filtered = df_raw[df_raw["الجهة المسؤولة"] == selected_dept].copy()
-    st.title(f"🏢 داش بورد: {selected_dept}")
-    st.caption("متابعة المتطلبات والتحديثات الخاصة بالإدارة بشكل منفصل")
+        if (searchText) {
+            filtered = filtered.filter(item => 
+                (item['المتطلب التنفيذي'] && item['المتطلب التنفيذي'].toLowerCase().includes(searchText)) ||
+                (item['الشاهد/الأدلة المطلوبة'] && item['الشاهد/الأدلة المطلوبة'].toLowerCase().includes(searchText))
+            );
+        }
 
-# حساب أرقام وتفاصيل الإنجاز
-total_reqs = len(df_filtered)
-completed = len(df_filtered[df_filtered["حالة المتطلب"] == "مكتمل"])
-in_progress = len(df_filtered[df_filtered["حالة المتطلب"] == "جاري التنفيذ"])
-not_started = len(df_filtered[df_filtered["حالة المتطلب"] == "لم يبدأ"])
-delayed = len(df_filtered[df_filtered["حالة المتطلب"] == "متأخر"])
-not_applicable = len(df_filtered[df_filtered["حالة المتطلب"] == "لا ينطبق"])
+        updateDashboard(filtered);
+    }
 
-applicable_total = total_reqs - not_applicable
-completion_rate = (completed / applicable_total * 100) if applicable_total > 0 else 0.0
+    function updateDashboard(data) {
+        const total = data.length;
+        const completed = data.filter(d => d['حالة المتطلب'] === 'مكتمل').length;
+        const inProgress = data.filter(d => d['حالة المتطلب'] === 'جاري التنفيذ').length;
+        const notStarted = data.filter(d => d['حالة المتطلب'] === 'لم يبدأ').length;
+        const other = total - (completed + inProgress + notStarted);
+        const rate = total > 0 ? ((completed / total) * 100).toFixed(1) : 0;
 
-# -----------------------------------------------------------------------------
-# 5. عرض كروت المؤشرات (KPIs)
-# -----------------------------------------------------------------------------
-kpi1, kpi2, kpi3, kpi4, kpi5, kpi6 = st.columns(6)
+        document.getElementById('kpiTotal').innerText = total;
+        document.getElementById('kpiCompleted').innerText = completed;
+        document.getElementById('kpiInProgress').innerText = inProgress;
+        document.getElementById('kpiNotStarted').innerText = notStarted;
+        document.getElementById('kpiOther').innerText = other;
+        document.getElementById('kpiRate').innerText = rate + '%';
 
-kpi1.metric("إجمالي المتطلبات", total_reqs)
-kpi2.metric("مكتملة ✅", completed)
-kpi3.metric("جاري التنفيذ ⏳", in_progress)
-kpi4.metric("لم يبدأ 🔴", not_started)
-kpi5.metric("متأخر ⚠️", delayed)
-kpi6.metric("نسبة الإنجاز", f"{completion_rate:.1f}%")
+        // Render Table
+        const tbody = document.getElementById('tableBody');
+        tbody.innerHTML = '';
+        data.forEach(row => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${row['الرقم'] || ''}</td>
+                <td>${row['المتطلب التنفيذي'] || ''}</td>
+                <td>${row['الشاهد/الأدلة المطلوبة'] || ''}</td>
+                <td><span class="badge bg-secondary">${row['الجهة المسؤولة'] || ''}</span></td>
+                <td><span class="badge ${getStatusBadge(row['حالة المتطلب'])}">${row['حالة المتطلب'] || 'لم يبدأ'}</span></td>
+                <td>${row['رابط الشاهد'] ? `<a href="${row['رابط الشاهد']}" target="_blank">رابط</a>` : '-'}</td>
+            `;
+            tbody.appendChild(tr);
+        });
 
-st.markdown("---")
+        renderChart(completed, inProgress, notStarted, other);
+    }
 
-# -----------------------------------------------------------------------------
-# 6. الرسوم البيانية التفاعلية
-# -----------------------------------------------------------------------------
-color_discrete_map = {
-    "مكتمل": "#2a9d8f",
-    "جاري التنفيذ": "#e9c46a",
-    "لم يبدأ": "#e76f51",
-    "متأخر": "#d62828",
-    "لا ينطبق": "#a8ded6"
-}
+    function getStatusBadge(status) {
+        if (status === 'مكتمل') return 'bg-success';
+        if (status === 'جاري التنفيذ') return 'bg-warning text-dark';
+        if (status === 'لم يبدأ') return 'bg-danger';
+        return 'bg-secondary';
+    }
 
-if selected_dept_option == "📋 كافة الإدارات (اللوحة العامة)":
-    st.subheader("📊 تحليل الجاهزية وحالات المتطلبات حسب الجهة")
-    
-    # تجميع الحالات لكل إدارة
-    dept_summary = df_raw.groupby(["الجهة المسؤولة", "حالة المتطلب"]).size().reset_index(name="العدد")
-    
-    fig = px.bar(
-        dept_summary,
-        x="الجهة المسؤولة",
-        y="العدد",
-        color="حالة المتطلب",
-        color_discrete_map=color_discrete_map,
-        barmode="stack",
-        height=450
-    )
-    fig.update_layout(
-        xaxis_title="الإدارة / الوحدة",
-        yaxis_title="عدد المتطلبات",
-        font_family="Cairo",
-        legend_title_text="حالة المتطلب"
-    )
-    st.plotly_chart(fig, use_container_width=True)
+    function renderChart(c, i, n, o) {
+        const ctx = document.getElementById('statusChart').getContext('2d');
+        if (myChart) myChart.destroy();
+        myChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['مكتمل ✅', 'جاري التنفيذ ⏳', 'لم يبدأ 🔴', 'أخرى / متأخر'],
+                datasets: [{
+                    label: 'عدد المتطلبات',
+                    data: [c, i, n, o],
+                    backgroundColor: ['#198754', '#ffc107', '#dc3545', '#6c757d']
+                }]
+            },
+            options: { responsive: true, plugins: { legend: { display: false } } }
+        });
+    }
 
-else:
-    col_chart1, col_chart2 = st.columns([1, 1])
-    
-    with col_chart1:
-        st.subheader("📌 توزيع حالات المتطلبات للإدارة")
-        status_counts = df_filtered["حالة المتطلب"].value_counts().reset_index()
-        status_counts.columns = ["حالة المتطلب", "العدد"]
-        
-        fig_pie = px.pie(
-            status_counts, 
-            values="العدد", 
-            names="حالة المتطلب",
-            color="حالة المتطلب",
-            color_discrete_map=color_discrete_map,
-            hole=0.4
-        )
-        fig_pie.update_layout(font_family="Cairo")
-        st.plotly_chart(fig_pie, use_container_width=True)
-        
-    with col_chart2:
-        st.subheader("💡 ملخص التقييم السريع")
-        st.info(f"""
-        - **الجهة:** {selected_dept_option}
-        - **المتطلبات المكتملة:** {completed} من أصل {total_reqs}
-        - **المتطلبات قيد العمل:** {in_progress}
-        - **المتطلبات التي لم تبدأ:** {not_started}
-        - **معدل الإنجاز الحالي:** {completion_rate:.1f}%
-        """)
+    window.onload = fetchData;
+</script>
 
-# -----------------------------------------------------------------------------
-# 7. عرض جدول بيانات المتطلبات التفاعلي
-# -----------------------------------------------------------------------------
-st.markdown("---")
-st.subheader("📋 جدول متطلبات الحوكمة والتحديثات المباشرة")
-
-# تصفية تفاعلية داخل الجدول
-c_search, c_filter = st.columns([3, 1])
-
-with c_filter:
-    status_select = st.multiselect(
-        "فلترة حسب الحالة:",
-        options=list(df_raw["حالة المتطلب"].unique()),
-        default=list(df_raw["حالة المتطلب"].unique())
-    )
-
-with c_search:
-    search_txt = st.text_input("🔍 بحث برقم المتطلب، النص، أو الشاهد المطلوبة:")
-
-# تطبيق الفلاتر
-df_view = df_filtered[df_filtered["حالة المتطلب"].isin(status_select)]
-
-if search_txt:
-    df_view = df_view[
-        df_view["المتطلب التنفيذي"].astype(str).str.contains(search_txt, na=False) |
-        df_view["الشاهد/الأدلة المطلوبة"].astype(str).str.contains(search_txt, na=False) |
-        df_view["الرقم"].astype(str).str.contains(search_txt, na=False)
-    ]
-
-# استعراض الجدول
-cols_to_show = [
-    "الرقم", "المتطلب التنفيذي", "الشاهد/الأدلة المطلوبة", 
-    "الجهة المسؤولة", "حالة المتطلب", "تاريخ الاستحقاق", 
-    "آخر تحديث", "رابط الشاهد", "ملاحظات وحدة الحوكمة والتميز"
-]
-available_cols = [c for c in cols_to_show if c in df_view.columns]
-
-st.dataframe(
-    df_view[available_cols],
-    use_container_width=True,
-    hide_index=True
-)
+</body>
+</html>
