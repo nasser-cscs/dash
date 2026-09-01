@@ -73,7 +73,7 @@
     <div class="dashboard-header d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
         <div>
             <h3 class="fw-bold text-primary mb-1">📊 داش بورد لوحة متابعة الحوكمة والجاهزية السنوية</h3>
-            <p class="text-muted mb-0">مربوط تلقائياً بـ Google Sheets (تنسيق مخصص وتصفية متقدمة)</p>
+            <p class="text-muted mb-0">مربوط فورياً بـ Google Sheets (ورقة المتطلبات الرئيسية مع إهمال صفحة التعليمات كلياً)</p>
         </div>
         <div class="d-flex align-items-center gap-2">
             <label class="fw-bold text-nowrap mb-0">اختر الجهة / الإدارة:</label>
@@ -127,7 +127,7 @@
     <div class="row g-4 mb-4">
         <div class="col-lg-8">
             <div class="main-container h-100">
-                <h5 class="fw-bold mb-3">📌 تحليلات حالات المتطلبات</h5>
+                <h5 class="fw-bold mb-3">📌 تحليلات حالات المتطلبات الإجمالية</h5>
                 <canvas id="barChart" height="120"></canvas>
             </div>
         </div>
@@ -142,9 +142,9 @@
     <!-- Data Table Section -->
     <div class="main-container">
         <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-3">
-            <h5 class="fw-bold mb-0">📋 جدول بيانات المتطلبات والتحديثات</h5>
+            <h5 class="fw-bold mb-0">📋 جدول بيانات المتطلبات الشاملة</h5>
             <div class="d-flex gap-2 w-md-50">
-                <input type="text" id="searchInput" class="form-control" placeholder="🔍 بحث برقم، متطلب، أو شاهد..." onkeyup="filterData()">
+                <input type="text" id="searchInput" class="form-control" placeholder="🔍 بحث بالنص أو الشاهد..." onkeyup="filterData()">
                 <select id="statusFilter" class="form-select w-50" onchange="filterData()">
                     <option value="ALL">جميع الحالات</option>
                     <option value="لم يبدأ">لم يبدأ</option>
@@ -180,8 +180,8 @@
 </div>
 
 <script>
-    // الرابط المباشر الخاص بك
-    const googleSheetCsvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQAeOYqR6dQsIiHpOb1FEnPK64TJaiO3p9_v0qu4bHH_ZALY0QMXsvnUsoSjyn4qW-EenW_Pss_Y6LR/pub?output=csv";
+    // الرابط المباشر الخاص بك لورقة المتطلبات الرئيسية
+    const googleSheetCsvUrl = "https://docs.google.com/spreadsheets/d/1yXNm3YtqmiTJgyerM_075Q6fiJgogzlqRW49FJ384oQ/gviz/tq?tqx=out:csv&sheet=%D8%A7%D9%84%D9%85%D8%AA%D8%B7%D9%84%D8%A8%D8%A7%D8%AA%20%D8%A7%D9%84%D8%B1%D8%A3%D9%8A%D8%B3%D9%8A%D8%A9";
 
     let rawData = [];
     let barChartInstance = null;
@@ -202,7 +202,7 @@
             header: true,
             skipEmptyLines: true,
             complete: function(results) {
-                // فلترة واستبعاد صفحة التعليمات تلقائياً
+                // تصفية البيانات واستبعاد صفحة التعليمات تلقائياً
                 rawData = results.data.filter(row => {
                     const dept = getColValue(row, ['الجهة المسؤولة', 'الجهة']);
                     const req = getColValue(row, ['المتطلب التنفيذي', 'المتطلب']);
@@ -219,7 +219,7 @@
             },
             error: function(err) {
                 document.getElementById('tableBody').innerHTML = `
-                    <tr><td colspan="6" class="text-center text-danger py-4">⚠️ فشل تحميل البيانات. تأكد من إعدادات النشر على جوجل شيت.</td></tr>
+                    <tr><td colspan="6" class="text-center text-danger py-4">⚠️ فشل تحميل البيانات. تأكد من إعدادات مشاركة الرابط (Anyone with link).</td></tr>
                 `;
             }
         });
@@ -272,7 +272,6 @@
 
     function renderDashboard(data) {
         const total = data.length;
-        
         let completed = 0, inProgress = 0, notStarted = 0, other = 0, notApplicable = 0;
 
         data.forEach(d => {
