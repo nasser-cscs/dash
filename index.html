@@ -1,9 +1,10 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import urllib.parse
 
 # -----------------------------------------------------------------------------
-# 1. إعدادات الصفحة
+# 1. إعدادات الصفحة والتصميم
 # -----------------------------------------------------------------------------
 st.set_page_config(
     page_title="داش بورد لوحة متابعة الحوكمة",
@@ -12,7 +13,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# تحسين تنسيق الواجهة ولدعم الاتجاه من اليمين لليسار (RTL)
+# دعم اللغة العربية والاتجاه من اليمين لليسار (RTL)
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
@@ -22,81 +23,103 @@ st.markdown("""
         text-align: right;
     }
     .stMetric {
-        background-color: #f8f9fa;
-        border: 1px solid #e9ecef;
+        background-color: #ffffff;
+        border: 1px solid #e0e0e0;
         padding: 15px;
         border-radius: 10px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         text-align: center;
+    }
+    .stDataFrame {
+        direction: rtl;
     }
     </style>
 """, unsafe_allow_html=True)
 
 # -----------------------------------------------------------------------------
-# 2. ربط وجلب البيانات من Google Sheets تلقائيًا
+# 2. إعدادات الربط مع Google Sheets
 # -----------------------------------------------------------------------------
-# استبدل SHEET_ID ورابط الشيت برابط جوجل شيت الخاص بك
-DEFAULT_SHEET_ID = "YOUR_GOOGLE_SHEET_ID_HERE"
-
-st.sidebar.title("⚙️ إعدادات الربط والبيانات")
+st.sidebar.title("⚙️ ربط Google Sheets")
 
 sheet_id = st.sidebar.text_input(
-    "معرّف جوجل شيت (Sheet ID):", 
-    value=DEFAULT_SHEET_ID,
-    help="أدخل ID الملف الموجود في رابط Google Sheets"
+    "معرّف ملف جوجل شيت (Sheet ID):", 
+    value="1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    help="أدخل ID الملف الموجود في رابط Google Sheets بين /d/ و /edit"
 )
 
-# اسم صفحة المصدر الأساسية (المتطلبات الرئيسية)
+# ضمان اختيار صفحة المتطلبات الرئيسية وإهمال التعليمات
 sheet_name = "المتطلبات الرئيسية"
+gid = st.sidebar.text_input("معرّف الصفحة (GID) - اختياري:", value="", help="إذا كانت الصفحة الرئيسية ليست الأولى، أدخل رقم GID الخاص بصفحة المتطلبات الرئيسية")
 
-@st.cache_data(ttl=60)  # تحديث البيانات تلقائيًا كل 60 ثانية
-def load_data_from_google_sheets(s_id, g_sheet_name):
-    # رابط تصدير الشيت بصيغة CSV تلقائيًا
-    url = f"https://docs.google.com/spreadsheets/d/{s_id}/gviz/tq?tqx=out:csv&sheet={g_sheet_name}"
+@st.cache_data(ttl=30)  # تحديث البيانات تلقائياً كل 30 ثانية
+def load_data_from_google_sheets(s_id, g_name, g_id):
+    encoded_sheet_name = urllib.parse.quote(g_name)
+    
+    # بناء رابط التصدير التلقائي بناءً على GID أو اسم الصفحة
+    if g_id.strip():
+        url = f"https://docs.google.com/spreadsheets/d/{s_id}/export?format=csv&gid={g_id.strip()}"
+    else:
+        url = f"https://docs.google.com/spreadsheets/d/{s_id}/gviz/tq?tqx=out:csv&sheet={encoded_sheet_name}"
+        
     df = pd.read_csv(url)
     
-    # تنظيف البيانات واختيار الصفوف المكتملة المتطلبات فقط
+    # -------------------------------------------------------------------------
+    # استبعاد صفحة التعليمات وتنظيف البيانات
+    # -------------------------------------------------------------------------
+    # إذا كانت القراءة سحبت صفحة التعليمات عن الخطأ، سنقوم بتصفية الأعمدة والصفوف
+    if "الجهة المسؤولة" not in df.columns:
+        # البحث عن السطر المبتدئ بالرقم والمتطلب
+        df.columns = df.iloc[0]
+        df = df[1:]
+        
+    # تصفية الصفوف التي تحتوي على بيانات المتطلبات فقط وإهمال الصفوف الفارغة/التعليمات
     if "الجهة المسؤولة" in df.columns:
         df = df.dropna(subset=["الجهة المسؤولة"])
+        df = df[df["الجهة المسؤولة"].astype(str).str.strip() != ""]
+        df = df[~df["الجهة المسؤولة"].astype(str).str.contains("تعليمات|مصدر البيانات", na=False)]
     
-    # تحويل العمود "الرقم" لنص
+    # معالجة عمود الرقم وحالة المتطلب
     if "الرقم" in df.columns:
         df["الرقم"] = df["الرقم"].astype(str).str.replace(".0", "", regex=False)
         
+    if "حالة المتطلب" in df.columns:
+        df["حالة المتطلب"] = df["حالة المتطلب"].fillna("لم يبدأ").astype(str).str.strip()
+        
     return df
 
+# جلب البيانات
 try:
-    df_raw = load_data_from_google_sheets(sheet_id, sheet_name)
-    st.sidebar.success("✅ تم الاتصال بجوجل شيت وجلب البيانات بنجاح!")
+    df_raw = load_data_from_google_sheets(sheet_id, sheet_name, gid)
+    st.sidebar.success(f"✅ تم الاتصال بنجاح | إجمالي المتطلبات: {len(df_raw)}")
 except Exception as e:
-    st.sidebar.error("⚠️ لم يتم الوصول لملف Google Sheets. يرجى التأكد من نشر الملف (Public/Anyone with link) ودقة الـ Sheet ID.")
+    st.sidebar.error("⚠️ فشل الاتصال برابط Google Sheets. يُرجى التأكد من نشر الملف (Publish to web) وتحديد الـ Sheet ID الصحيح.")
     st.stop()
 
 # -----------------------------------------------------------------------------
-# 3. قائمة الإدارات والوحدات لتصفية البيانات
+# 3. تصفية وتقسيم الإدارات والوحدات
 # -----------------------------------------------------------------------------
-departments = ["كافة الإدارات (لوحة عامة)"] + sorted(df_raw["الجهة المسؤولة"].dropna().unique().tolist())
-
 st.sidebar.markdown("---")
-selected_dept = st.sidebar.selectbox("🏢 اختر الإدارة / الوحدة:", departments)
+st.sidebar.subheader("🏢 تصفية الإدارة / الوحدة")
 
-st.sidebar.markdown("""
-<br>
-<small>💡 **ملاحظة:** يتم إهمال صفحة "تعليمات الاستخدام" وتعتمد هذه اللوحة كليًا على التحديث الفوري لصفحة المتطلبات الرئيسية.</small>
-""", unsafe_allow_html=True)
+all_departments = sorted(df_raw["الجهة المسؤولة"].unique().tolist())
+dept_options = ["📋 كافة الإدارات (اللوحة العامة)"] + all_departments
+
+selected_dept_option = st.sidebar.selectbox("اختر الإدارة / الوحدة:", dept_options)
 
 # -----------------------------------------------------------------------------
-# 4. فلترة البيانات وتقسيمها
+# 4. معالجة البيانات وبناء الداش بورد
 # -----------------------------------------------------------------------------
-if selected_dept == "كافة الإدارات (لوحة عامة)":
+if selected_dept_option == "📋 كافة الإدارات (اللوحة العامة)":
     df_filtered = df_raw.copy()
-    st.title("📊 لوحة متابعة الجاهزية السنوية للحوكمة - العامة")
+    st.title("📊 لوحة متابعة الحوكمة والجاهزية السنوية - العامة")
+    st.caption("تحديث تلقائي وفوري من Google Sheets (إهمال صفحة التعليمات ومعالجة كافة المتطلبات)")
 else:
+    selected_dept = selected_dept_option
     df_filtered = df_raw[df_raw["الجهة المسؤولة"] == selected_dept].copy()
-    st.title(f"🏢 لوحة متطلبات جهة: {selected_dept}")
+    st.title(f"🏢 داش بورد: {selected_dept}")
+    st.caption("متابعة المتطلبات والتحديثات الخاصة بالإدارة بشكل منفصل")
 
-# -----------------------------------------------------------------------------
-# 5. حساب المؤشرات (KPIs)
-# -----------------------------------------------------------------------------
+# حساب أرقام وتفاصيل الإنجاز
 total_reqs = len(df_filtered)
 completed = len(df_filtered[df_filtered["حالة المتطلب"] == "مكتمل"])
 in_progress = len(df_filtered[df_filtered["حالة المتطلب"] == "جاري التنفيذ"])
@@ -104,88 +127,125 @@ not_started = len(df_filtered[df_filtered["حالة المتطلب"] == "لم ي
 delayed = len(df_filtered[df_filtered["حالة المتطلب"] == "متأخر"])
 not_applicable = len(df_filtered[df_filtered["حالة المتطلب"] == "لا ينطبق"])
 
-# نسبة الإنجاز الإجمالية (تستثني "لا ينطبق" إن وجدت)
 applicable_total = total_reqs - not_applicable
 completion_rate = (completed / applicable_total * 100) if applicable_total > 0 else 0.0
 
-# عرض بطاقات المؤشرات
-col1, col2, col3, col4, col5, col6 = st.columns(6)
-col1.metric("إجمالي المتطلبات", total_reqs)
-col2.metric("مكتملة ✅", completed)
-col3.metric("جاري التنفيذ ⏳", in_progress)
-col4.metric("لم يبدأ 🔴", not_started)
-col5.metric("متأخر ⚠️", delayed)
-col6.metric("نسبة الإنجاز", f"{completion_rate:.1f}%")
+# -----------------------------------------------------------------------------
+# 5. عرض كروت المؤشرات (KPIs)
+# -----------------------------------------------------------------------------
+kpi1, kpi2, kpi3, kpi4, kpi5, kpi6 = st.columns(6)
+
+kpi1.metric("إجمالي المتطلبات", total_reqs)
+kpi2.metric("مكتملة ✅", completed)
+kpi3.metric("جاري التنفيذ ⏳", in_progress)
+kpi4.metric("لم يبدأ 🔴", not_started)
+kpi5.metric("متأخر ⚠️", delayed)
+kpi6.metric("نسبة الإنجاز", f"{completion_rate:.1f}%")
 
 st.markdown("---")
 
 # -----------------------------------------------------------------------------
-# 6. الرسم البياني للوحة العامة / أو للجهة
+# 6. الرسوم البيانية التفاعلية
 # -----------------------------------------------------------------------------
-if selected_dept == "كافة الإدارات (لوحة عامة)":
-    st.subheader("📌 تحليل جاهزية الحوكمة حسب الإدارة / الوحدة")
+color_discrete_map = {
+    "مكتمل": "#2a9d8f",
+    "جاري التنفيذ": "#e9c46a",
+    "لم يبدأ": "#e76f51",
+    "متأخر": "#d62828",
+    "لا ينطبق": "#a8ded6"
+}
+
+if selected_dept_option == "📋 كافة الإدارات (اللوحة العامة)":
+    st.subheader("📊 تحليل الجاهزية وحالات المتطلبات حسب الجهة")
     
-    # تجميع البيانات حسب الجهة والحالة
-    dept_stats = df_raw.groupby(["الجهة المسؤولة", "حالة المتطلب"]).size().reset_index(name="العدد")
-    
-    color_map = {
-        "مكتمل": "#2ec4b6",
-        "جاري التنفيذ": "#ff9f1c",
-        "لم يبدأ": "#e71d36",
-        "متأخر": "#d62828",
-        "لا ينطبق": "#8d99ae"
-    }
+    # تجميع الحالات لكل إدارة
+    dept_summary = df_raw.groupby(["الجهة المسؤولة", "حالة المتطلب"]).size().reset_index(name="العدد")
     
     fig = px.bar(
-        dept_stats,
+        dept_summary,
         x="الجهة المسؤولة",
         y="العدد",
         color="حالة المتطلب",
-        title="توزيع حالات المتطلبات لكل إدارة ووحدة",
-        color_discrete_map=color_map,
+        color_discrete_map=color_discrete_map,
         barmode="stack",
-        height=500
+        height=450
     )
-    fig.update_layout(xaxis_title="الإدارة / الوحدة", yaxis_title="عدد المتطلبات")
+    fig.update_layout(
+        xaxis_title="الإدارة / الوحدة",
+        yaxis_title="عدد المتطلبات",
+        font_family="Cairo",
+        legend_title_text="حالة المتطلب"
+    )
     st.plotly_chart(fig, use_container_width=True)
 
-# -----------------------------------------------------------------------------
-# 7. عرض جدول بيانات المتطلبات منفصل ومفصّل
-# -----------------------------------------------------------------------------
-st.subheader("📋 جدول المتطلبات والتحديثات التفصيلية")
+else:
+    col_chart1, col_chart2 = st.columns([1, 1])
+    
+    with col_chart1:
+        st.subheader("📌 توزيع حالات المتطلبات للإدارة")
+        status_counts = df_filtered["حالة المتطلب"].value_counts().reset_index()
+        status_counts.columns = ["حالة المتطلب", "العدد"]
+        
+        fig_pie = px.pie(
+            status_counts, 
+            values="العدد", 
+            names="حالة المتطلب",
+            color="حالة المتطلب",
+            color_discrete_map=color_discrete_map,
+            hole=0.4
+        )
+        fig_pie.update_layout(font_family="Cairo")
+        st.plotly_chart(fig_pie, use_container_width=True)
+        
+    with col_chart2:
+        st.subheader("💡 ملخص التقييم السريع")
+        st.info(f"""
+        - **الجهة:** {selected_dept_option}
+        - **المتطلبات المكتملة:** {completed} من أصل {total_reqs}
+        - **المتطلبات قيد العمل:** {in_progress}
+        - **المتطلبات التي لم تبدأ:** {not_started}
+        - **معدل الإنجاز الحالي:** {completion_rate:.1f}%
+        """)
 
-# خيارات تصفية إضافية داخل الجدول
-col_search, col_status = st.columns([2, 1])
+# -----------------------------------------------------------------------------
+# 7. عرض جدول بيانات المتطلبات التفاعلي
+# -----------------------------------------------------------------------------
+st.markdown("---")
+st.subheader("📋 جدول متطلبات الحوكمة والتحديثات المباشرة")
 
-with col_status:
-    status_filter = st.multiselect(
-        "تصفية حسب الحالة:",
+# تصفية تفاعلية داخل الجدول
+c_search, c_filter = st.columns([3, 1])
+
+with c_filter:
+    status_select = st.multiselect(
+        "فلترة حسب الحالة:",
         options=list(df_raw["حالة المتطلب"].unique()),
         default=list(df_raw["حالة المتطلب"].unique())
     )
 
-with col_search:
-    search_query = st.text_input("🔍 بحث في نص المتطلب التنفيذي أو الأدلة المطلوبة:")
+with c_search:
+    search_txt = st.text_input("🔍 بحث برقم المتطلب، النص، أو الشاهد المطلوبة:")
 
 # تطبيق الفلاتر
-df_table = df_filtered[df_filtered["حالة المتطلب"].isin(status_filter)]
+df_view = df_filtered[df_filtered["حالة المتطلب"].isin(status_select)]
 
-if search_query:
-    df_table = df_table[
-        df_table["المتطلب التنفيذي"].astype(str).str.contains(search_query, case=False, na=False) |
-        df_table["الشاهد/الأدلة المطلوبة"].astype(str).str.contains(search_query, case=False, na=False)
+if search_txt:
+    df_view = df_view[
+        df_view["المتطلب التنفيذي"].astype(str).str.contains(search_txt, na=False) |
+        df_view["الشاهد/الأدلة المطلوبة"].astype(str).str.contains(search_txt, na=False) |
+        df_view["الرقم"].astype(str).str.contains(search_txt, na=False)
     ]
 
-# عرض الأعمدة المهمة فقط
-display_cols = [
+# استعراض الجدول
+cols_to_show = [
     "الرقم", "المتطلب التنفيذي", "الشاهد/الأدلة المطلوبة", 
     "الجهة المسؤولة", "حالة المتطلب", "تاريخ الاستحقاق", 
     "آخر تحديث", "رابط الشاهد", "ملاحظات وحدة الحوكمة والتميز"
 ]
-display_cols = [col for col in display_cols if col in df_table.columns]
+available_cols = [c for c in cols_to_show if c in df_view.columns]
 
 st.dataframe(
-    df_table[display_cols],
+    df_view[available_cols],
     use_container_width=True,
     hide_index=True
 )
