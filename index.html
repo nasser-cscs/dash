@@ -9,9 +9,9 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
     <!-- Google Font (Cairo) -->
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
-    <!-- Chart.js for Visualizations -->
+    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- PapaParse for Reading Google Sheets CSV -->
+    <!-- PapaParse for parsing CSV -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
 
     <style>
@@ -73,7 +73,7 @@
     <div class="dashboard-header d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
         <div>
             <h3 class="fw-bold text-primary mb-1">📊 داش بورد لوحة متابعة الحوكمة والجاهزية السنوية</h3>
-            <p class="text-muted mb-0">مربوط فورياً بملف Google Sheets (مع إهمال صفحة التعليمات كلياً)</p>
+            <p class="text-muted mb-0">مربوط تلقائياً بـ Google Sheets (تنسيق مخصص وتصفية متقدمة)</p>
         </div>
         <div class="d-flex align-items-center gap-2">
             <label class="fw-bold text-nowrap mb-0">اختر الجهة / الإدارة:</label>
@@ -127,7 +127,7 @@
     <div class="row g-4 mb-4">
         <div class="col-lg-8">
             <div class="main-container h-100">
-                <h5 class="fw-bold mb-3">📌 تحليلات حالات المتطلبات الإجمالية</h5>
+                <h5 class="fw-bold mb-3">📌 تحليلات حالات المتطلبات</h5>
                 <canvas id="barChart" height="120"></canvas>
             </div>
         </div>
@@ -142,9 +142,9 @@
     <!-- Data Table Section -->
     <div class="main-container">
         <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-3">
-            <h5 class="fw-bold mb-0">📋 جدول بيانات المتطلبات الشاملة</h5>
+            <h5 class="fw-bold mb-0">📋 جدول بيانات المتطلبات والتحديثات</h5>
             <div class="d-flex gap-2 w-md-50">
-                <input type="text" id="searchInput" class="form-control" placeholder="🔍 بحث بالنص أو الشاهد..." onkeyup="filterData()">
+                <input type="text" id="searchInput" class="form-control" placeholder="🔍 بحث برقم، متطلب، أو شاهد..." onkeyup="filterData()">
                 <select id="statusFilter" class="form-select w-50" onchange="filterData()">
                     <option value="ALL">جميع الحالات</option>
                     <option value="لم يبدأ">لم يبدأ</option>
@@ -180,14 +180,21 @@
 </div>
 
 <script>
-    // -------------------------------------------------------------------------
-    // رابط جوجل شيت المباشر (تأكد من استبدال GID ورابط الشيت الخاص بك)
-    // -------------------------------------------------------------------------
-    const googleSheetCsvUrl = "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID_HERE/export?format=csv&gid=YOUR_GID_HERE";
+    // الرابط المباشر الخاص بك
+    const googleSheetCsvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQAeOYqR6dQsIiHpOb1FEnPK64TJaiO3p9_v0qu4bHH_ZALY0QMXsvnUsoSjyn4qW-EenW_Pss_Y6LR/pub?output=csv";
 
     let rawData = [];
     let barChartInstance = null;
     let pieChartInstance = null;
+
+    function getColValue(row, possibleNames) {
+        for (let name of possibleNames) {
+            for (let key in row) {
+                if (key.trim() === name.trim()) return row[key] ? row[key].trim() : '';
+            }
+        }
+        return '';
+    }
 
     async function initDashboard() {
         Papa.parse(googleSheetCsvUrl, {
@@ -195,10 +202,16 @@
             header: true,
             skipEmptyLines: true,
             complete: function(results) {
-                // تصفية البيانات لإهمال صفحة التعليمات كلياً واعتماد البيانات الحقيقية
+                // فلترة واستبعاد صفحة التعليمات تلقائياً
                 rawData = results.data.filter(row => {
-                    const dept = row['الجهة المسؤولة'] ? row['الجهة المسؤولة'].trim() : '';
-                    return dept !== '' && !dept.includes('تعليمات') && !dept.includes('مصدر البيانات');
+                    const dept = getColValue(row, ['الجهة المسؤولة', 'الجهة']);
+                    const req = getColValue(row, ['المتطلب التنفيذي', 'المتطلب']);
+                    
+                    return dept !== '' && 
+                           !dept.includes('تعليمات') && 
+                           !dept.includes('مصدر البيانات') &&
+                           !dept.includes('آخر تحديث') &&
+                           req !== '';
                 });
 
                 populateDepartments();
@@ -206,14 +219,14 @@
             },
             error: function(err) {
                 document.getElementById('tableBody').innerHTML = `
-                    <tr><td colspan="6" class="text-center text-danger py-4">⚠️ فشل التحميل. يرجى التأكد من نشر ملف Google Sheets للعموم (Public).</td></tr>
+                    <tr><td colspan="6" class="text-center text-danger py-4">⚠️ فشل تحميل البيانات. تأكد من إعدادات النشر على جوجل شيت.</td></tr>
                 `;
             }
         });
     }
 
     function populateDepartments() {
-        const departments = [...new Set(rawData.map(item => item['الجهة المسؤولة'].trim()))].sort();
+        const departments = [...new Set(rawData.map(item => getColValue(item, ['الجهة المسؤولة', 'الجهة'])))].filter(Boolean).sort();
         const deptSelect = document.getElementById('deptSelect');
         
         departments.forEach(dept => {
@@ -231,37 +244,47 @@
 
         let filtered = rawData;
 
-        // تصفية الإدارة/الوحدة
+        // تصفية حسب الإدارة
         if (selectedDept !== 'ALL') {
-            filtered = filtered.filter(item => item['الجهة المسؤولة'].trim() === selectedDept);
+            filtered = filtered.filter(item => getColValue(item, ['الجهة المسؤولة', 'الجهة']) === selectedDept);
         }
 
-        // تصفية الحالة
+        // تصفية حسب الحالة
         if (selectedStatus !== 'ALL') {
-            filtered = filtered.filter(item => (item['حالة المتطلب'] || 'لم يبدأ').trim() === selectedStatus);
+            filtered = filtered.filter(item => {
+                const status = getColValue(item, ['حالة المتطلب', 'الحالة']) || 'لم يبدأ';
+                return status === selectedStatus;
+            });
         }
 
         // تصفية البحث النصي
         if (searchText) {
-            filtered = filtered.filter(item => 
-                (item['المتطلب التنفيذي'] && item['المتطلب التنفيذي'].toLowerCase().includes(searchText)) ||
-                (item['الشاهد/الأدلة المطلوبة'] && item['الشاهد/الأدلة المطلوبة'].toLowerCase().includes(searchText)) ||
-                (item['الرقم'] && item['الرقم'].toString().includes(searchText))
-            );
+            filtered = filtered.filter(item => {
+                const req = getColValue(item, ['المتطلب التنفيذي', 'المتطلب']).toLowerCase();
+                const evidence = getColValue(item, ['الشاهد/الأدلة المطلوبة', 'الشاهد']).toLowerCase();
+                const num = getColValue(item, ['الرقم', 'م']).toLowerCase();
+                return req.includes(searchText) || evidence.includes(searchText) || num.includes(searchText);
+            });
         }
 
         renderDashboard(filtered);
     }
 
     function renderDashboard(data) {
-        // حساب المؤشرات KPIs
         const total = data.length;
-        const completed = data.filter(d => (d['حالة المتطلب'] || '').trim() === 'مكتمل').length;
-        const inProgress = data.filter(d => (d['حالة المتطلب'] || '').trim() === 'جاري التنفيذ').length;
-        const notStarted = data.filter(d => (d['حالة المتطلب'] || '').trim() === 'لم يبدأ' || !d['حالة المتطلب']).length;
-        const other = total - (completed + inProgress + notStarted);
+        
+        let completed = 0, inProgress = 0, notStarted = 0, other = 0, notApplicable = 0;
 
-        const applicableTotal = total - data.filter(d => (d['حالة المتطلب'] || '').trim() === 'لا ينطبق').length;
+        data.forEach(d => {
+            const st = getColValue(d, ['حالة المتطلب', 'الحالة']) || 'لم يبدأ';
+            if (st === 'مكتمل') completed++;
+            else if (st === 'جاري التنفيذ') inProgress++;
+            else if (st === 'لم يبدأ') notStarted++;
+            else if (st === 'لا ينطبق') { notApplicable++; other++; }
+            else other++;
+        });
+
+        const applicableTotal = total - notApplicable;
         const rate = applicableTotal > 0 ? ((completed / applicableTotal) * 100).toFixed(1) : 0;
 
         document.getElementById('kpiTotal').innerText = total;
@@ -271,25 +294,31 @@
         document.getElementById('kpiOther').innerText = other;
         document.getElementById('kpiRate').innerText = rate + '%';
 
-        // ملء جدول البيانات
+        // عرض الجدول
         const tbody = document.getElementById('tableBody');
         tbody.innerHTML = '';
 
         if (data.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-4">لا توجد متطلبات مطابقة للفلتر المحدد.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-4">لا توجد بيانات مطابقة للفلترة.</td></tr>`;
         } else {
             data.forEach(row => {
                 const tr = document.createElement('tr');
-                const status = (row['حالة المتطلب'] || 'لم يبدأ').trim();
-                const link = row['رابط الشاهد'] && row['رابط الشاهد'].startsWith('http') 
-                    ? `<a href="${row['رابط الشاهد']}" target="_blank" class="btn btn-sm btn-outline-primary">عرض</a>` 
+                const num = getColValue(row, ['الرقم', 'م']);
+                const req = getColValue(row, ['المتطلب التنفيذي', 'المتطلب']);
+                const evidence = getColValue(row, ['الشاهد/الأدلة المطلوبة', 'الشاهد']);
+                const dept = getColValue(row, ['الجهة المسؤولة', 'الجهة']);
+                const status = getColValue(row, ['حالة المتطلب', 'الحالة']) || 'لم يبدأ';
+                const linkVal = getColValue(row, ['رابط الشاهد', 'الرابط']);
+
+                const link = linkVal && linkVal.startsWith('http') 
+                    ? `<a href="${linkVal}" target="_blank" class="btn btn-sm btn-outline-primary">عرض</a>` 
                     : '-';
 
                 tr.innerHTML = `
-                    <td class="fw-bold">${row['الرقم'] || '-'}</td>
-                    <td>${row['المتطلب التنفيذي'] || ''}</td>
-                    <td class="text-muted small">${row['الشاهد/الأدلة المطلوبة'] || ''}</td>
-                    <td><span class="badge bg-light text-dark border">${row['الجهة المسؤولة'] || ''}</span></td>
+                    <td class="fw-bold">${num || '-'}</td>
+                    <td>${req}</td>
+                    <td class="text-muted small">${evidence}</td>
+                    <td><span class="badge bg-light text-dark border">${dept}</span></td>
                     <td><span class="badge ${getStatusBadge(status)} badge-status">${status}</span></td>
                     <td>${link}</td>
                 `;
@@ -297,7 +326,6 @@
             });
         }
 
-        // تحديث الرسوم البيانية
         renderCharts(completed, inProgress, notStarted, other);
     }
 
@@ -312,7 +340,6 @@
     }
 
     function renderCharts(c, i, n, o) {
-        // Bar Chart
         const ctxBar = document.getElementById('barChart').getContext('2d');
         if (barChartInstance) barChartInstance.destroy();
         barChartInstance = new Chart(ctxBar, {
@@ -332,7 +359,6 @@
             }
         });
 
-        // Pie Chart
         const ctxPie = document.getElementById('pieChart').getContext('2d');
         if (pieChartInstance) pieChartInstance.destroy();
         pieChartInstance = new Chart(ctxPie, {
