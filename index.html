@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لوحة متابعة الحوكمة والجاهزية السنوية</title>
+    <title>لوحة متابعة الحوكمة والجاهزية السنوية - الأمانة العامة</title>
 
     <!-- Bootstrap 5 RTL -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
@@ -18,14 +18,24 @@
 
     <style>
         :root {
-            --bg-canvas: #f4f6f9;
+            /* ألوان الهوية البصرية لشعار مجلس الجمعيات التعاونية */
+            --brand-primary: #3b2c6b;      /* الكحلي البنفسجي العميق */
+            --brand-secondary: #12736e;    /* الأخضر التيل / الزمردي */
+            --brand-gradient: linear-gradient(135deg, #3b2c6b 0%, #12736e 100%);
+            --brand-soft-bg: #f3f0f8;      /* خلفية ناعمة مشتقة من الهوية */
+            --brand-soft-teal: #e6f3f2;
+            
+            --bg-canvas: #f7f8fa;
             --card-bg: #ffffff;
-            --primary-color: #1e3a8a;
-            --primary-soft: #eff6ff;
-            --accent-color: #3b82f6;
             --text-main: #1f2937;
             --text-muted: #6b7280;
-            --border-color: #e5e7eb;
+            --border-color: #e2e8f0;
+
+            /* ألوان المؤشرات وحالات الإنجاز (تم الإبقاء عليها كما هي) */
+            --kpi-completed: #10b981;
+            --kpi-progress: #f59e0b;
+            --kpi-notstarted: #ef4444;
+            --kpi-other: #6b7280;
         }
 
         body {
@@ -37,11 +47,11 @@
 
         /* Top Header */
         .header-card {
-            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+            background: var(--brand-gradient);
             color: #ffffff;
             border-radius: 16px;
-            padding: 24px 30px;
-            box-shadow: 0 10px 25px -5px rgba(30, 58, 138, 0.2);
+            padding: 26px 32px;
+            box-shadow: 0 10px 25px -5px rgba(59, 44, 107, 0.25);
             margin-bottom: 24px;
         }
 
@@ -57,6 +67,11 @@
             max-height: calc(100vh - 40px);
             display: flex;
             flex-direction: column;
+        }
+
+        .sidebar-title {
+            color: var(--brand-primary);
+            font-weight: 700;
         }
 
         .dept-list {
@@ -82,14 +97,14 @@
         }
 
         .dept-item:hover {
-            background-color: var(--primary-soft);
-            color: var(--primary-color);
+            background-color: var(--brand-soft-bg);
+            color: var(--brand-primary);
         }
 
         .dept-item.active {
-            background-color: var(--primary-color);
+            background: var(--brand-gradient);
             color: #ffffff;
-            box-shadow: 0 4px 12px rgba(30, 58, 138, 0.25);
+            box-shadow: 0 4px 12px rgba(59, 44, 107, 0.25);
         }
 
         .dept-item .badge {
@@ -99,7 +114,7 @@
         }
 
         .dept-item.active .badge {
-            background-color: rgba(255, 255, 255, 0.2) !important;
+            background-color: rgba(255, 255, 255, 0.25) !important;
             color: #ffffff !important;
         }
 
@@ -152,6 +167,10 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.02);
         }
 
+        .section-header-icon {
+            color: var(--brand-secondary);
+        }
+
         /* Table Design */
         .custom-table {
             border-collapse: separate;
@@ -160,7 +179,7 @@
 
         .custom-table thead th {
             background-color: #f8fafc;
-            color: var(--text-muted);
+            color: var(--brand-primary);
             font-weight: 700;
             font-size: 0.85rem;
             border-bottom: 2px solid var(--border-color);
@@ -183,10 +202,17 @@
             gap: 6px;
         }
 
+        /* Status Colors (المؤشرات) */
         .status-completed { background-color: #d1fae5; color: #065f46; }
         .status-progress { background-color: #fef3c7; color: #92400e; }
         .status-notstarted { background-color: #fee2e2; color: #991b1b; }
         .status-other { background-color: #f3f4f6; color: #374151; }
+
+        /* Form elements focus style */
+        .form-control:focus, .form-select:focus {
+            border-color: var(--brand-secondary);
+            box-shadow: 0 0 0 0.25rem rgba(18, 115, 110, 0.15);
+        }
 
         ::-webkit-scrollbar {
             width: 6px;
@@ -212,12 +238,12 @@
     <!-- Header -->
     <div class="header-card d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
         <div>
-            <h2 class="fw-bold mb-1"><i class="fa-solid fa-chart-line me-2"></i> لوحة متابعة الحوكمة والجاهزية السنوية</h2>
-            <p class="mb-0 text-white-50 fs-6">نظام متابعة وتمرير البيانات المباشر | التحديث الفوري للجهات والوحدات</p>
+            <h2 class="fw-bold mb-1"><i class="fa-solid fa-chart-line me-2"></i> مجلس الجمعيات التعاونية - الأمانة العامة</h2>
+            <p class="mb-0 text-white-50 fs-6">لوحة متابعة الحوكمة والجاهزية السنوية للجهات والوحدات</p>
         </div>
         <div>
             <span class="badge bg-white text-dark px-3 py-2 rounded-pill fw-bold shadow-sm">
-                <i class="fa-solid fa-sync text-primary me-1 spin-icon"></i> متصل بـ Google Sheets
+                <i class="fa-solid fa-sync me-1" style="color: var(--brand-secondary);"></i> متصل بـ Google Sheets
             </span>
         </div>
     </div>
@@ -229,8 +255,8 @@
         <div class="col-lg-4 col-xl-3">
             <div class="sidebar-card">
                 <div class="d-flex align-items-center justify-content-between mb-3">
-                    <h5 class="fw-bold mb-0 text-primary">
-                        <i class="fa-solid fa-sitemap me-2"></i>الإدارات والوحدات
+                    <h5 class="fw-bold mb-0 sidebar-title">
+                        <i class="fa-solid fa-sitemap me-2 section-header-icon"></i>الإدارات والوحدات
                     </h5>
                     <span class="badge bg-light text-dark border" id="totalDeptsCount">0</span>
                 </div>
@@ -258,9 +284,9 @@
             <div class="row g-3 mb-4">
                 <div class="col-6 col-sm-4 col-md-2">
                     <div class="kpi-card">
-                        <div class="kpi-icon bg-primary text-white"><i class="fa-solid fa-list-check"></i></div>
+                        <div class="kpi-icon text-white" style="background-color: var(--brand-primary);"><i class="fa-solid fa-list-check"></i></div>
                         <div class="kpi-label">الإجمالي</div>
-                        <div class="kpi-val text-primary" id="kpiTotal">0</div>
+                        <div class="kpi-val" style="color: var(--brand-primary);" id="kpiTotal">0</div>
                     </div>
                 </div>
                 <div class="col-6 col-sm-4 col-md-2">
@@ -292,8 +318,8 @@
                     </div>
                 </div>
                 <div class="col-6 col-sm-4 col-md-2">
-                    <div class="kpi-card bg-primary text-white border-0">
-                        <div class="kpi-icon bg-white text-primary"><i class="fa-solid fa-percent"></i></div>
+                    <div class="kpi-card text-white border-0" style="background: var(--brand-gradient);">
+                        <div class="kpi-icon bg-white" style="color: var(--brand-primary);"><i class="fa-solid fa-percent"></i></div>
                         <div class="kpi-label text-white-50">نسبة الإنجاز</div>
                         <div class="kpi-val text-white" id="kpiRate">0%</div>
                     </div>
@@ -305,7 +331,7 @@
                 <div class="col-lg-7">
                     <div class="content-card h-100">
                         <div class="d-flex align-items-center justify-content-between mb-3">
-                            <h6 class="fw-bold mb-0"><i class="fa-solid fa-chart-column text-primary me-2"></i>حالات المتطلبات</h6>
+                            <h6 class="fw-bold mb-0" style="color: var(--brand-primary);"><i class="fa-solid fa-chart-column section-header-icon me-2"></i>حالات المتطلبات</h6>
                             <span class="badge bg-light text-muted border" id="selectedDeptTitle">كافة الإدارات</span>
                         </div>
                         <canvas id="barChart" height="150"></canvas>
@@ -314,7 +340,7 @@
                 <div class="col-lg-5">
                     <div class="content-card h-100">
                         <div class="d-flex align-items-center justify-content-between mb-3">
-                            <h6 class="fw-bold mb-0"><i class="fa-solid fa-chart-pie text-primary me-2"></i>نسب توزيع الإنجاز</h6>
+                            <h6 class="fw-bold mb-0" style="color: var(--brand-primary);"><i class="fa-solid fa-chart-pie section-header-icon me-2"></i>نسب توزيع الإنجاز</h6>
                         </div>
                         <canvas id="pieChart" height="210"></canvas>
                     </div>
@@ -324,7 +350,7 @@
             <!-- Data Table Section -->
             <div class="content-card">
                 <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-3">
-                    <h6 class="fw-bold mb-0"><i class="fa-solid fa-table-list text-primary me-2"></i>جدول التفاصيل والحالات</h6>
+                    <h6 class="fw-bold mb-0" style="color: var(--brand-primary);"><i class="fa-solid fa-table-list section-header-icon me-2"></i>جدول التفاصيل والحالات</h6>
                     
                     <div class="d-flex gap-2 w-md-50">
                         <div class="position-relative flex-grow-1">
@@ -370,7 +396,6 @@
 </div>
 
 <script>
-    // الرابط المباشر الجديد
     const googleSheetCsvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTEaU9Bl3jA4CONfiLoaqNuiKnKVlUfqTvp6tdqr0_aHtWawVcP8JJwmqueD94zEsGJZkIS3G_3hxaz/pub?output=csv";
 
     let rawData = [];
@@ -546,7 +571,7 @@
                 const linkVal = getColValue(row, ['رابط الشاهد', 'الرابط']);
 
                 const link = linkVal && linkVal.startsWith('http') 
-                    ? `<a href="${linkVal}" target="_blank" class="btn btn-sm btn-light border text-primary"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>` 
+                    ? `<a href="${linkVal}" target="_blank" class="btn btn-sm btn-light border" style="color: var(--brand-secondary);"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>` 
                     : '-';
 
                 tr.innerHTML = `
