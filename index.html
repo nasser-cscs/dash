@@ -183,13 +183,11 @@
             gap: 6px;
         }
 
-        /* Status Colors */
         .status-completed { background-color: #d1fae5; color: #065f46; }
         .status-progress { background-color: #fef3c7; color: #92400e; }
         .status-notstarted { background-color: #fee2e2; color: #991b1b; }
         .status-other { background-color: #f3f4f6; color: #374151; }
 
-        /* Scrollbar styling */
         ::-webkit-scrollbar {
             width: 6px;
             height: 6px;
@@ -372,7 +370,8 @@
 </div>
 
 <script>
-    const googleSheetCsvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTGPRsIAffWqoe-YQ-KzWelut5zrjDJXIVDmlqisnkEHWkXBv3b4kjkIG5Yx-kiJAsHGBPmwMrJQ-pP/pub?output=csv";
+    // الرابط المباشر الجديد
+    const googleSheetCsvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTEaU9Bl3jA4CONfiLoaqNuiKnKVlUfqTvp6tdqr0_aHtWawVcP8JJwmqueD94zEsGJZkIS3G_3hxaz/pub?output=csv";
 
     let rawData = [];
     let selectedDept = 'ALL';
@@ -485,12 +484,10 @@
 
         let filtered = rawData;
 
-        // تصفية حسب القسم المحدد من القائمة الجانبية
         if (selectedDept !== 'ALL') {
             filtered = filtered.filter(item => getColValue(item, ['الجهة المسؤولة', 'الجهة']) === selectedDept);
         }
 
-        // تصفية الحالة
         if (selectedStatus !== 'ALL') {
             filtered = filtered.filter(item => {
                 const status = getColValue(item, ['حالة المتطلب', 'الحالة']) || 'لم يبدأ';
@@ -498,7 +495,6 @@
             });
         }
 
-        // تصفية النص
         if (searchText) {
             filtered = filtered.filter(item => {
                 const req = getColValue(item, ['المتطلب التنفيذي', 'المتطلب']).toLowerCase();
@@ -534,7 +530,6 @@
         document.getElementById('kpiOther').innerText = other;
         document.getElementById('kpiRate').innerText = rate + '%';
 
-        // Table Population
         const tbody = document.getElementById('tableBody');
         tbody.innerHTML = '';
 
