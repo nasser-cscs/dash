@@ -231,7 +231,7 @@
         </div>
         <div>
             <span class="badge bg-white text-dark px-3 py-2 rounded-pill fw-bold shadow-sm">
-                <i class="fa-solid fa-sync me-1" style="color: var(--brand-secondary);"></i> متصل بـ Google Sheets
+                <i class="fa-solid fa-sync me-1 text-success"></i> متصل بـ Google Sheets
             </span>
         </div>
     </div>
@@ -383,7 +383,8 @@
 </div>
 
 <script>
-    const googleSheetCsvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS-T5yh5x0_CSgR_1BMX6ZqXdHGbvsF0Ljmhds017VMK3sADwDOFoHvuf6e-DzIqC5Avf2ZP_kcA5F1/pub?output=csv";
+    // رابط النشر المباشر بصيغة CSV الخاص بك
+    const googleSheetCsvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQqaO4ASGMIFD_YvyDjdDYD75-iRHdj30sRk4l6D1iftK89anSlSRv1Vxt2wd_4s0embPmYvUA0uxAu/pub?output=csv";
 
     let rawData = [];
     let selectedDept = 'ALL';
@@ -399,27 +400,30 @@
         const tbody = document.getElementById('tableBody');
         try {
             const response = await fetch(googleSheetCsvUrl);
-            if (!response.ok) {
-                throw new Error(`تعذر الوصول للرابط (رمز الخطأ: ${response.status})`);
-            }
-            const csvText = await response.text();
+            if (!response.ok) throw new Error(`Status: ${response.status}`);
             
-            // تحويل CSV إلى مصفوفة ثنائية الأبعاد
+            const csvText = await response.text();
             const parsed = Papa.parse(csvText, { skipEmptyLines: true });
+            
             if (!parsed.data || parsed.data.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-4">⚠️ الرابط لا يحتوي على بيانات.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-4">⚠️ لم يتم العثور على بيانات داخل الملف.</td></tr>`;
                 return;
             }
 
             processParsedMatrix(parsed.data);
         } catch (err) {
             console.error("Fetch Error:", err);
-            tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-4">⚠️ تعذر تحميل البيانات من الشيت. تأكد من نشر الشيت بصيغة CSV وتوفر اتصال بالإنترنت.</td></tr>`;
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center text-danger py-4">
+                        ⚠️ تعذر اتصال اللوحة بالملف. يرجى التأكد من اتصال الإنترنت.
+                    </td>
+                </tr>
+            `;
         }
     }
 
     function processParsedMatrix(matrix) {
-        // البحث عن السطر الذي يتضمن عناوين الأعمدة الفعلية
         let headerRowIdx = -1;
         for (let i = 0; i < Math.min(10, matrix.length); i++) {
             const rowStr = matrix[i].join(' ').toLowerCase();
@@ -432,8 +436,6 @@
         if (headerRowIdx === -1) headerRowIdx = 0;
 
         const headers = matrix[headerRowIdx].map(h => cleanStr(h));
-        
-        // خريطة لتحديد مواقع الأعمدة ديناميكياً
         let colMap = { num: 0, req: 1, evidence: 2, dept: 3, status: 4, link: 5 };
 
         headers.forEach((h, idx) => {
@@ -446,7 +448,6 @@
             else if (hLow.includes('رابط') || hLow.includes('http') || hLow.includes('url')) colMap.link = idx;
         });
 
-        // استخراج أسطر البيانات
         const dataRows = matrix.slice(headerRowIdx + 1);
         
         rawData = dataRows.map(row => {
@@ -463,17 +464,6 @@
             const isNotTitle = !item.dept.includes('تعليمات') && !item.req.includes('المتطلب التنفيذي');
             return hasContent && isNotTitle;
         });
-
-        if (rawData.length === 0 && dataRows.length > 0) {
-            rawData = dataRows.map(row => ({
-                num: cleanStr(row[0]),
-                req: cleanStr(row[1]),
-                evidence: cleanStr(row[2]),
-                dept: cleanStr(row[3]) || 'عام',
-                status: cleanStr(row[4]) || 'لم يبدأ',
-                link: cleanStr(row[5])
-            })).filter(r => r.req !== '' || r.dept !== '');
-        }
 
         renderSidebarDepartments();
         filterData();
