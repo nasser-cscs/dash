@@ -361,7 +361,6 @@
                             <option value="جاري التنفيذ">جاري التنفيذ</option>
                             <option value="لم يبدأ">لم يبدأ</option>
                             <option value="لا ينطبق">لا ينطبق</option>
-                            <option value="متأخر">متأخر</option>
                         </select>
                     </div>
                 </div>
@@ -395,7 +394,7 @@
 </div>
 
 <script>
-    // الرابط الجديد المُحدّث لجدول البيانات
+    // الرابط الجديد المُحدد
     const googleSheetCsvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS-T5yh5x0_CSgR_1BMX6ZqXdHGbvsF0Ljmhds017VMK3sADwDOFoHvuf6e-DzIqC5Avf2ZP_kcA5F1/pub?output=csv";
 
     let rawData = [];
@@ -408,7 +407,11 @@
         return String(str).replace(/^\ufeff/, '').trim();
     }
 
-    function getColValue(row, possibleNames) {
+    // دالة استخراج قيم الأعمدة بمرونة عالية للمطابقة الدقيقة والجزئية
+    function getColValue(row, possibleNames, keywords = []) {
+        if (!row) return '';
+        
+        // 1. مطابقة دقيقة لأسم الأعمدة
         for (let key in row) {
             const cleanedKey = cleanStr(key);
             for (let name of possibleNames) {
@@ -417,31 +420,92 @@
                 }
             }
         }
+
+        // 2. مطابقة جزئية
+        for (let key in row) {
+            const cleanedKey = cleanStr(key);
+            for (let name of possibleNames) {
+                if (cleanedKey.includes(cleanStr(name))) {
+                    return cleanStr(row[key]);
+                }
+            }
+        }
+
+        // 3. مطابقة الكلمات المفتاحية
+        for (let key in row) {
+            const cleanedKey = cleanStr(key);
+            for (let kw of keywords) {
+                if (cleanedKey.includes(kw)) {
+                    return cleanStr(row[key]);
+                }
+            }
+        }
+
         return '';
+    }
+
+    // قراءة جلب البيانات من CSV
+    function getRowDept(row) {
+        return getColValue(row, ['الجهة المسؤولة', 'الجهة', 'الإدارة', 'الادارة', 'الجهة/الإدارة', 'الجهة المعنية'], ['جهة', 'إدارة', 'ادارة', 'وحدة']);
+    }
+
+    function getRowReq(row) {
+        return getColValue(row, ['المتطلب التنفيذي', 'المتطلب', 'المعيار', 'اسم المتطلب', 'البيان'], ['متطلب', 'معيار', 'بيان']);
+    }
+
+    function getRowEvidence(row) {
+        return getColValue(row, ['الشاهد/الأدلة المطلوبة', 'الشاهد', 'الشاهد / الأدلة المطلوبة', 'الأدلة المطلوبة', 'الأدلة', 'الادلة', 'الشواهد'], ['شاهد', 'أدلة', 'ادلة', 'شواهد']);
+    }
+
+    function getRowStatus(row) {
+        return getColValue(row, ['حالة المتطلب', 'الحالة', 'حالة الإنجاز', 'حالة التنفيذ', 'وضع المتطلب'], ['حالة', 'وضع']);
+    }
+
+    function getRowLink(row) {
+        return getColValue(row, ['رابط الشاهد', 'الرابط', 'رابط الشواهد', 'رابط المستند', 'URL', 'Link'], ['رابط', 'http', 'link', 'url']);
+    }
+
+    function getRowNum(row) {
+        return getColValue(row, ['الرقم', 'م', 'م.', 'رقم', 'ID', '#'], ['رقم', 'م']);
     }
 
     function initDashboard() {
         Papa.parse(googleSheetCsvUrl, {
             download: true,
             header: true,
-            skipEmptyLines: true,
+            skipEmptyLines: 'greedy',
             complete: function(results) {
+                if (!results.data || results.data.length === 0) {
+                    document.getElementById('tableBody').innerHTML = `
+                        <tr><td colspan="6" class="text-center text-danger py-4">⚠️ لم يتم العثور على بيانات في الرابط المحدد.</td></tr>
+                    `;
+                    return;
+                }
+
+                // فلترة الصفوف غير المعنية أو الصفوف الإرشادية
                 rawData = results.data.filter(row => {
-                    const dept = getColValue(row, ['الجهة المسؤولة', 'الجهة']);
-                    const req = getColValue(row, ['المتطلب التنفيذي', 'المتطلب']);
-                    return dept !== '' && 
-                           !dept.includes('تعليمات') && 
-                           !dept.includes('مصدر البيانات') &&
-                           !dept.includes('آخر تحديث') &&
-                           req !== '';
+                    const dept = getRowDept(row);
+                    const req = getRowReq(row);
+                    const deptClean = dept.toLowerCase();
+                    
+                    return (dept !== '' || req !== '') && 
+                           !deptClean.includes('تعليمات') && 
+                           !deptClean.includes('مصدر البيانات') &&
+                           !deptClean.includes('آخر تحديث');
                 });
+
+                // في حال عدم العثور على تطابق بالفلاتر الصارمة، يتم استعادة جميع الصفوف المكتملة
+                if (rawData.length === 0) {
+                    rawData = results.data.filter(row => Object.values(row).some(v => cleanStr(v) !== ''));
+                }
 
                 renderSidebarDepartments();
                 filterData();
             },
             error: function(err) {
+                console.error("CSV Parse Error:", err);
                 document.getElementById('tableBody').innerHTML = `
-                    <tr><td colspan="6" class="text-center text-danger py-4">⚠️ تعذر تحميل البيانات من الشيت.</td></tr>
+                    <tr><td colspan="6" class="text-center text-danger py-4">⚠️ تعذر تحميل البيانات من الشيت. تأكد من نشر الرابط بصيغة CSV.</td></tr>
                 `;
             }
         });
@@ -450,10 +514,8 @@
     function renderSidebarDepartments() {
         const deptCounts = {};
         rawData.forEach(item => {
-            const dept = getColValue(item, ['الجهة المسؤولة', 'الجهة']);
-            if (dept) {
-                deptCounts[dept] = (deptCounts[dept] || 0) + 1;
-            }
+            const dept = getRowDept(item) || 'غير محدد';
+            deptCounts[dept] = (deptCounts[dept] || 0) + 1;
         });
 
         const deptNames = Object.keys(deptCounts).sort();
@@ -510,21 +572,25 @@
         let filtered = rawData;
 
         if (selectedDept !== 'ALL') {
-            filtered = filtered.filter(item => getColValue(item, ['الجهة المسؤولة', 'الجهة']) === selectedDept);
+            filtered = filtered.filter(item => (getRowDept(item) || 'غير محدد') === selectedDept);
         }
 
         if (selectedStatus !== 'ALL') {
             filtered = filtered.filter(item => {
-                const status = getColValue(item, ['حالة المتطلب', 'الحالة']) || 'لم يبدأ';
+                const status = getRowStatus(item) || 'لم يبدأ';
+                if (selectedStatus === 'مكتمل') return status.includes('مكتمل');
+                if (selectedStatus === 'جاري التنفيذ') return status.includes('جاري') || status.includes('قيد');
+                if (selectedStatus === 'لم يبدأ') return status.includes('لم يبدأ');
+                if (selectedStatus === 'لا ينطبق') return status.includes('لا ينطبق') || status.includes('غير مطبق');
                 return status === selectedStatus;
             });
         }
 
         if (searchText) {
             filtered = filtered.filter(item => {
-                const req = getColValue(item, ['المتطلب التنفيذي', 'المتطلب']).toLowerCase();
-                const evidence = getColValue(item, ['الشاهد/الأدلة المطلوبة', 'الشاهد', 'الشاهد / الأدلة المطلوبة']).toLowerCase();
-                const num = getColValue(item, ['الرقم', 'م']).toLowerCase();
+                const req = getRowReq(item).toLowerCase();
+                const evidence = getRowEvidence(item).toLowerCase();
+                const num = getRowNum(item).toLowerCase();
                 return req.includes(searchText) || evidence.includes(searchText) || num.includes(searchText);
             });
         }
@@ -537,11 +603,11 @@
         let completed = 0, inProgress = 0, notStarted = 0, other = 0, notApplicable = 0;
 
         data.forEach(d => {
-            const st = getColValue(d, ['حالة المتطلب', 'الحالة']) || 'لم يبدأ';
-            if (st === 'مكتمل') completed++;
-            else if (st === 'جاري التنفيذ') inProgress++;
-            else if (st === 'لم يبدأ') notStarted++;
-            else if (st === 'لا ينطبق') { notApplicable++; other++; }
+            const st = getRowStatus(d) || 'لم يبدأ';
+            if (st.includes('مكتمل')) completed++;
+            else if (st.includes('جاري') || st.includes('قيد')) inProgress++;
+            else if (st.includes('لم يبدأ')) notStarted++;
+            else if (st.includes('لا ينطبق') || st.includes('غير مطبق')) { notApplicable++; other++; }
             else other++;
         });
 
@@ -563,12 +629,12 @@
         } else {
             data.forEach(row => {
                 const tr = document.createElement('tr');
-                const num = getColValue(row, ['الرقم', 'م']);
-                const req = getColValue(row, ['المتطلب التنفيذي', 'المتطلب']);
-                const evidence = getColValue(row, ['الشاهد/الأدلة المطلوبة', 'الشاهد', 'الشاهد / الأدلة المطلوبة']);
-                const dept = getColValue(row, ['الجهة المسؤولة', 'الجهة']);
-                const status = getColValue(row, ['حالة المتطلب', 'الحالة']) || 'لم يبدأ';
-                const linkVal = getColValue(row, ['رابط الشاهد', 'الرابط']);
+                const num = getRowNum(row);
+                const req = getRowReq(row);
+                const evidence = getRowEvidence(row);
+                const dept = getRowDept(row) || 'عام';
+                const status = getRowStatus(row) || 'لم يبدأ';
+                const linkVal = getRowLink(row);
 
                 const link = linkVal && linkVal.startsWith('http') 
                     ? `<a href="${linkVal}" target="_blank" class="btn btn-sm btn-light border" style="color: var(--brand-secondary);"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>` 
@@ -576,7 +642,7 @@
 
                 tr.innerHTML = `
                     <td class="fw-bold text-muted">${num || '-'}</td>
-                    <td class="fw-semibold">${req}</td>
+                    <td class="fw-semibold">${req || '-'}</td>
                     <td class="text-muted small">${evidence || '-'}</td>
                     <td><span class="badge bg-light text-dark border">${dept}</span></td>
                     <td>${getStatusBadgeHTML(status)}</td>
@@ -590,15 +656,15 @@
     }
 
     function getStatusBadgeHTML(status) {
-        switch(status) {
-            case 'مكتمل': 
-                return `<span class="badge-status status-completed"><i class="fa-solid fa-check-circle"></i> مكتمل</span>`;
-            case 'جاري التنفيذ': 
-                return `<span class="badge-status status-progress"><i class="fa-solid fa-spinner fa-spin"></i> جاري التنفيذ</span>`;
-            case 'لم يبدأ': 
-                return `<span class="badge-status status-notstarted"><i class="fa-solid fa-circle-xmark"></i> لم يبدأ</span>`;
-            default: 
-                return `<span class="badge-status status-other"><i class="fa-solid fa-minus-circle"></i> ${status}</span>`;
+        const st = (status || '').trim();
+        if (st.includes('مكتمل')) {
+            return `<span class="badge-status status-completed"><i class="fa-solid fa-check-circle"></i> ${st}</span>`;
+        } else if (st.includes('جاري') || st.includes('قيد')) {
+            return `<span class="badge-status status-progress"><i class="fa-solid fa-spinner fa-spin"></i> ${st}</span>`;
+        } else if (st.includes('لم يبدأ')) {
+            return `<span class="badge-status status-notstarted"><i class="fa-solid fa-circle-xmark"></i> ${st}</span>`;
+        } else {
+            return `<span class="badge-status status-other"><i class="fa-solid fa-minus-circle"></i> ${st || 'أخرى'}</span>`;
         }
     }
 
