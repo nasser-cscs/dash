@@ -23,19 +23,12 @@
             --brand-secondary: #12736e;    /* الأخضر التيل / الزمردي */
             --brand-gradient: linear-gradient(135deg, #3b2c6b 0%, #12736e 100%);
             --brand-soft-bg: #f3f0f8;      /* خلفية ناعمة مشتقة من الهوية */
-            --brand-soft-teal: #e6f3f2;
             
             --bg-canvas: #f7f8fa;
             --card-bg: #ffffff;
             --text-main: #1f2937;
             --text-muted: #6b7280;
             --border-color: #e2e8f0;
-
-            /* ألوان المؤشرات وحالات الإنجاز */
-            --kpi-completed: #10b981;
-            --kpi-progress: #f59e0b;
-            --kpi-notstarted: #ef4444;
-            --kpi-other: #6b7280;
         }
 
         body {
@@ -202,7 +195,6 @@
             gap: 6px;
         }
 
-        /* Status Colors */
         .status-completed { background-color: #d1fae5; color: #065f46; }
         .status-progress { background-color: #fef3c7; color: #92400e; }
         .status-notstarted { background-color: #fee2e2; color: #991b1b; }
@@ -224,9 +216,6 @@
         ::-webkit-scrollbar-thumb {
             background: #cbd5e1;
             border-radius: 8px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #94a3b8;
         }
     </style>
 </head>
@@ -394,7 +383,6 @@
 </div>
 
 <script>
-    // الرابط الجديد المُحدد
     const googleSheetCsvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS-T5yh5x0_CSgR_1BMX6ZqXdHGbvsF0Ljmhds017VMK3sADwDOFoHvuf6e-DzIqC5Avf2ZP_kcA5F1/pub?output=csv";
 
     let rawData = [];
@@ -403,119 +391,99 @@
     let pieChartInstance = null;
 
     function cleanStr(str) {
-        if (!str) return '';
+        if (str === null || str === undefined) return '';
         return String(str).replace(/^\ufeff/, '').trim();
     }
 
-    // دالة استخراج قيم الأعمدة بمرونة عالية للمطابقة الدقيقة والجزئية
-    function getColValue(row, possibleNames, keywords = []) {
-        if (!row) return '';
+    async function initDashboard() {
+        const tbody = document.getElementById('tableBody');
+        try {
+            const response = await fetch(googleSheetCsvUrl);
+            if (!response.ok) {
+                throw new Error(`تعذر الوصول للرابط (رمز الخطأ: ${response.status})`);
+            }
+            const csvText = await response.text();
+            
+            // تحويل CSV إلى مصفوفة ثنائية الأبعاد
+            const parsed = Papa.parse(csvText, { skipEmptyLines: true });
+            if (!parsed.data || parsed.data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-4">⚠️ الرابط لا يحتوي على بيانات.</td></tr>`;
+                return;
+            }
+
+            processParsedMatrix(parsed.data);
+        } catch (err) {
+            console.error("Fetch Error:", err);
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-4">⚠️ تعذر تحميل البيانات من الشيت. تأكد من نشر الشيت بصيغة CSV وتوفر اتصال بالإنترنت.</td></tr>`;
+        }
+    }
+
+    function processParsedMatrix(matrix) {
+        // البحث عن السطر الذي يتضمن عناوين الأعمدة الفعلية
+        let headerRowIdx = -1;
+        for (let i = 0; i < Math.min(10, matrix.length); i++) {
+            const rowStr = matrix[i].join(' ').toLowerCase();
+            if (rowStr.includes('متطلب') || rowStr.includes('جهة') || rowStr.includes('حالة') || rowStr.includes('شاهد') || rowStr.includes('معيار')) {
+                headerRowIdx = i;
+                break;
+            }
+        }
+
+        if (headerRowIdx === -1) headerRowIdx = 0;
+
+        const headers = matrix[headerRowIdx].map(h => cleanStr(h));
         
-        // 1. مطابقة دقيقة لأسم الأعمدة
-        for (let key in row) {
-            const cleanedKey = cleanStr(key);
-            for (let name of possibleNames) {
-                if (cleanedKey === cleanStr(name)) {
-                    return cleanStr(row[key]);
-                }
-            }
-        }
+        // خريطة لتحديد مواقع الأعمدة ديناميكياً
+        let colMap = { num: 0, req: 1, evidence: 2, dept: 3, status: 4, link: 5 };
 
-        // 2. مطابقة جزئية
-        for (let key in row) {
-            const cleanedKey = cleanStr(key);
-            for (let name of possibleNames) {
-                if (cleanedKey.includes(cleanStr(name))) {
-                    return cleanStr(row[key]);
-                }
-            }
-        }
-
-        // 3. مطابقة الكلمات المفتاحية
-        for (let key in row) {
-            const cleanedKey = cleanStr(key);
-            for (let kw of keywords) {
-                if (cleanedKey.includes(kw)) {
-                    return cleanStr(row[key]);
-                }
-            }
-        }
-
-        return '';
-    }
-
-    // قراءة جلب البيانات من CSV
-    function getRowDept(row) {
-        return getColValue(row, ['الجهة المسؤولة', 'الجهة', 'الإدارة', 'الادارة', 'الجهة/الإدارة', 'الجهة المعنية'], ['جهة', 'إدارة', 'ادارة', 'وحدة']);
-    }
-
-    function getRowReq(row) {
-        return getColValue(row, ['المتطلب التنفيذي', 'المتطلب', 'المعيار', 'اسم المتطلب', 'البيان'], ['متطلب', 'معيار', 'بيان']);
-    }
-
-    function getRowEvidence(row) {
-        return getColValue(row, ['الشاهد/الأدلة المطلوبة', 'الشاهد', 'الشاهد / الأدلة المطلوبة', 'الأدلة المطلوبة', 'الأدلة', 'الادلة', 'الشواهد'], ['شاهد', 'أدلة', 'ادلة', 'شواهد']);
-    }
-
-    function getRowStatus(row) {
-        return getColValue(row, ['حالة المتطلب', 'الحالة', 'حالة الإنجاز', 'حالة التنفيذ', 'وضع المتطلب'], ['حالة', 'وضع']);
-    }
-
-    function getRowLink(row) {
-        return getColValue(row, ['رابط الشاهد', 'الرابط', 'رابط الشواهد', 'رابط المستند', 'URL', 'Link'], ['رابط', 'http', 'link', 'url']);
-    }
-
-    function getRowNum(row) {
-        return getColValue(row, ['الرقم', 'م', 'م.', 'رقم', 'ID', '#'], ['رقم', 'م']);
-    }
-
-    function initDashboard() {
-        Papa.parse(googleSheetCsvUrl, {
-            download: true,
-            header: true,
-            skipEmptyLines: 'greedy',
-            complete: function(results) {
-                if (!results.data || results.data.length === 0) {
-                    document.getElementById('tableBody').innerHTML = `
-                        <tr><td colspan="6" class="text-center text-danger py-4">⚠️ لم يتم العثور على بيانات في الرابط المحدد.</td></tr>
-                    `;
-                    return;
-                }
-
-                // فلترة الصفوف غير المعنية أو الصفوف الإرشادية
-                rawData = results.data.filter(row => {
-                    const dept = getRowDept(row);
-                    const req = getRowReq(row);
-                    const deptClean = dept.toLowerCase();
-                    
-                    return (dept !== '' || req !== '') && 
-                           !deptClean.includes('تعليمات') && 
-                           !deptClean.includes('مصدر البيانات') &&
-                           !deptClean.includes('آخر تحديث');
-                });
-
-                // في حال عدم العثور على تطابق بالفلاتر الصارمة، يتم استعادة جميع الصفوف المكتملة
-                if (rawData.length === 0) {
-                    rawData = results.data.filter(row => Object.values(row).some(v => cleanStr(v) !== ''));
-                }
-
-                renderSidebarDepartments();
-                filterData();
-            },
-            error: function(err) {
-                console.error("CSV Parse Error:", err);
-                document.getElementById('tableBody').innerHTML = `
-                    <tr><td colspan="6" class="text-center text-danger py-4">⚠️ تعذر تحميل البيانات من الشيت. تأكد من نشر الرابط بصيغة CSV.</td></tr>
-                `;
-            }
+        headers.forEach((h, idx) => {
+            const hLow = h.toLowerCase();
+            if (hLow.includes('رقم') || hLow === 'م' || hLow === 'م.') colMap.num = idx;
+            else if (hLow.includes('متطلب') || hLow.includes('معيار') || hLow.includes('بيان')) colMap.req = idx;
+            else if (hLow.includes('شاهد') || hLow.includes('أدلة') || hLow.includes('ادلة')) colMap.evidence = idx;
+            else if (hLow.includes('جهة') || hLow.includes('إدارة') || hLow.includes('ادارة') || hLow.includes('وحدة')) colMap.dept = idx;
+            else if (hLow.includes('حالة') || hLow.includes('وضع')) colMap.status = idx;
+            else if (hLow.includes('رابط') || hLow.includes('http') || hLow.includes('url')) colMap.link = idx;
         });
+
+        // استخراج أسطر البيانات
+        const dataRows = matrix.slice(headerRowIdx + 1);
+        
+        rawData = dataRows.map(row => {
+            return {
+                num: cleanStr(row[colMap.num]),
+                req: cleanStr(row[colMap.req]),
+                evidence: cleanStr(row[colMap.evidence]),
+                dept: cleanStr(row[colMap.dept]) || 'عام / غير محدد',
+                status: cleanStr(row[colMap.status]) || 'لم يبدأ',
+                link: cleanStr(row[colMap.link])
+            };
+        }).filter(item => {
+            const hasContent = item.req !== '' || item.dept !== '' || item.evidence !== '';
+            const isNotTitle = !item.dept.includes('تعليمات') && !item.req.includes('المتطلب التنفيذي');
+            return hasContent && isNotTitle;
+        });
+
+        if (rawData.length === 0 && dataRows.length > 0) {
+            rawData = dataRows.map(row => ({
+                num: cleanStr(row[0]),
+                req: cleanStr(row[1]),
+                evidence: cleanStr(row[2]),
+                dept: cleanStr(row[3]) || 'عام',
+                status: cleanStr(row[4]) || 'لم يبدأ',
+                link: cleanStr(row[5])
+            })).filter(r => r.req !== '' || r.dept !== '');
+        }
+
+        renderSidebarDepartments();
+        filterData();
     }
 
     function renderSidebarDepartments() {
         const deptCounts = {};
         rawData.forEach(item => {
-            const dept = getRowDept(item) || 'غير محدد';
-            deptCounts[dept] = (deptCounts[dept] || 0) + 1;
+            const deptName = item.dept || 'عام / غير محدد';
+            deptCounts[deptName] = (deptCounts[deptName] || 0) + 1;
         });
 
         const deptNames = Object.keys(deptCounts).sort();
@@ -524,7 +492,7 @@
         document.getElementById('totalDeptsCount').innerText = deptNames.length + ' جهات';
 
         let html = `
-            <div class="dept-item ${selectedDept === 'ALL' ? 'active' : ''}" onclick="selectDepartment('ALL')">
+            <div class="dept-item ${selectedDept === 'ALL' ? 'active' : ''}" data-dept="ALL" onclick="handleDeptClick(this)">
                 <span><i class="fa-solid fa-layer-group me-2"></i>اللوحة العامة (الكل)</span>
                 <span class="badge bg-secondary text-dark">${rawData.length}</span>
             </div>
@@ -532,8 +500,9 @@
 
         deptNames.forEach(dept => {
             const isSelected = selectedDept === dept;
+            const safeDept = dept.replace(/"/g, '&quot;');
             html += `
-                <div class="dept-item ${isSelected ? 'active' : ''}" data-dept="${dept}" onclick="selectDepartment('${dept}')">
+                <div class="dept-item ${isSelected ? 'active' : ''}" data-dept="${safeDept}" onclick="handleDeptClick(this)">
                     <span class="text-truncate" style="max-width: 170px;"><i class="fa-solid fa-building me-2 opacity-75"></i>${dept}</span>
                     <span class="badge bg-light text-dark border">${deptCounts[dept]}</span>
                 </div>
@@ -549,19 +518,14 @@
 
         items.forEach(item => {
             const text = item.innerText.toLowerCase();
-            if (text.includes(query)) {
-                item.style.display = 'flex';
-            } else {
-                item.style.display = 'none';
-            }
+            item.style.display = text.includes(query) ? 'flex' : 'none';
         });
     }
 
-    function selectDepartment(dept) {
-        selectedDept = dept;
+    function handleDeptClick(elem) {
+        selectedDept = elem.getAttribute('data-dept');
         renderSidebarDepartments();
-        
-        document.getElementById('selectedDeptTitle').innerText = (dept === 'ALL') ? 'كافة الإدارات' : dept;
+        document.getElementById('selectedDeptTitle').innerText = (selectedDept === 'ALL') ? 'كافة الإدارات' : selectedDept;
         filterData();
     }
 
@@ -572,15 +536,15 @@
         let filtered = rawData;
 
         if (selectedDept !== 'ALL') {
-            filtered = filtered.filter(item => (getRowDept(item) || 'غير محدد') === selectedDept);
+            filtered = filtered.filter(item => (item.dept || 'عام / غير محدد') === selectedDept);
         }
 
         if (selectedStatus !== 'ALL') {
             filtered = filtered.filter(item => {
-                const status = getRowStatus(item) || 'لم يبدأ';
-                if (selectedStatus === 'مكتمل') return status.includes('مكتمل');
-                if (selectedStatus === 'جاري التنفيذ') return status.includes('جاري') || status.includes('قيد');
-                if (selectedStatus === 'لم يبدأ') return status.includes('لم يبدأ');
+                const status = item.status || 'لم يبدأ';
+                if (selectedStatus === 'مكتمل') return status.includes('مكتمل') || status.includes('تم') || status.includes('100');
+                if (selectedStatus === 'جاري التنفيذ') return status.includes('جاري') || status.includes('قيد') || status.includes('مستمر');
+                if (selectedStatus === 'لم يبدأ') return status.includes('لم يبدأ') || status.includes('جديد');
                 if (selectedStatus === 'لا ينطبق') return status.includes('لا ينطبق') || status.includes('غير مطبق');
                 return status === selectedStatus;
             });
@@ -588,10 +552,9 @@
 
         if (searchText) {
             filtered = filtered.filter(item => {
-                const req = getRowReq(item).toLowerCase();
-                const evidence = getRowEvidence(item).toLowerCase();
-                const num = getRowNum(item).toLowerCase();
-                return req.includes(searchText) || evidence.includes(searchText) || num.includes(searchText);
+                return item.req.toLowerCase().includes(searchText) || 
+                       item.evidence.toLowerCase().includes(searchText) || 
+                       item.num.toLowerCase().includes(searchText);
             });
         }
 
@@ -603,9 +566,9 @@
         let completed = 0, inProgress = 0, notStarted = 0, other = 0, notApplicable = 0;
 
         data.forEach(d => {
-            const st = getRowStatus(d) || 'لم يبدأ';
-            if (st.includes('مكتمل')) completed++;
-            else if (st.includes('جاري') || st.includes('قيد')) inProgress++;
+            const st = d.status || 'لم يبدأ';
+            if (st.includes('مكتمل') || st.includes('تم')) completed++;
+            else if (st.includes('جاري') || st.includes('قيد') || st.includes('مستمر')) inProgress++;
             else if (st.includes('لم يبدأ')) notStarted++;
             else if (st.includes('لا ينطبق') || st.includes('غير مطبق')) { notApplicable++; other++; }
             else other++;
@@ -629,23 +592,17 @@
         } else {
             data.forEach(row => {
                 const tr = document.createElement('tr');
-                const num = getRowNum(row);
-                const req = getRowReq(row);
-                const evidence = getRowEvidence(row);
-                const dept = getRowDept(row) || 'عام';
-                const status = getRowStatus(row) || 'لم يبدأ';
-                const linkVal = getRowLink(row);
-
-                const link = linkVal && linkVal.startsWith('http') 
+                const linkVal = row.link;
+                const link = (linkVal && linkVal.startsWith('http')) 
                     ? `<a href="${linkVal}" target="_blank" class="btn btn-sm btn-light border" style="color: var(--brand-secondary);"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>` 
                     : '-';
 
                 tr.innerHTML = `
-                    <td class="fw-bold text-muted">${num || '-'}</td>
-                    <td class="fw-semibold">${req || '-'}</td>
-                    <td class="text-muted small">${evidence || '-'}</td>
-                    <td><span class="badge bg-light text-dark border">${dept}</span></td>
-                    <td>${getStatusBadgeHTML(status)}</td>
+                    <td class="fw-bold text-muted">${row.num || '-'}</td>
+                    <td class="fw-semibold">${row.req || '-'}</td>
+                    <td class="text-muted small">${row.evidence || '-'}</td>
+                    <td><span class="badge bg-light text-dark border">${row.dept}</span></td>
+                    <td>${getStatusBadgeHTML(row.status)}</td>
                     <td>${link}</td>
                 `;
                 tbody.appendChild(tr);
@@ -657,9 +614,9 @@
 
     function getStatusBadgeHTML(status) {
         const st = (status || '').trim();
-        if (st.includes('مكتمل')) {
+        if (st.includes('مكتمل') || st.includes('تم')) {
             return `<span class="badge-status status-completed"><i class="fa-solid fa-check-circle"></i> ${st}</span>`;
-        } else if (st.includes('جاري') || st.includes('قيد')) {
+        } else if (st.includes('جاري') || st.includes('قيد') || st.includes('مستمر')) {
             return `<span class="badge-status status-progress"><i class="fa-solid fa-spinner fa-spin"></i> ${st}</span>`;
         } else if (st.includes('لم يبدأ')) {
             return `<span class="badge-status status-notstarted"><i class="fa-solid fa-circle-xmark"></i> ${st}</span>`;
